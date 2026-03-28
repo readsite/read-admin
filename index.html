@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
+    <title>Read.管理后台 | 内容发布中心</title>
+    <link href="font/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- 登录面板 -->
+<div id="loginPanel" class="login-panel">
+    <div class="login-card">
+        <h2>Read. 管理后台</h2>
+        <p class="login-sub">内容发布管理中心</p>
+        <form id="loginForm">
+            <div class="login-input-group">
+                <i class="ri-user-3-line"></i>
+                <input type="text" id="username" placeholder="用户名" autocomplete="off">
+            </div>
+            <div class="login-input-group">
+                <i class="ri-lock-line"></i>
+                <input type="password" id="password" placeholder="密码">
+            </div>
+            <button type="submit" class="login-btn">登录系统</button>
+        </form>
+    </div>
+</div>
+
+<!-- 主应用容器 -->
+<div id="appContainer" class="app-container" style="display: none;">
+    <div class="container">
+        <div class="header">
+            <h1><i class="ri-book-open-line"></i>Read.管理后台</h1>
+            <div class="header-buttons">
+                <button class="btn" id="newPostBtn"><i class="ri-add-line"></i> 新建发布</button>
+                <button class="btn" id="newChangelogBtn" style="background:#6c5ce7;"><i class="ri-history-line"></i> 新增日志</button>
+                <button class="btn logout-btn" id="logoutBtn"><i class="ri-logout-box-line"></i> 退出</button>
+            </div>
+        </div>
+
+        <!-- PC端顶部选项卡 -->
+                <div class="tabs">
+            <button id="tabPublished" class="active"><i class="ri-checkbox-circle-line"></i> 已发布</button>
+            <button id="tabScheduled"><i class="ri-time-line"></i> 定时任务</button>
+            <button id="tabDraft"><i class="ri-draft-line"></i> 草稿</button>
+            <button id="tabChangelog"><i class="ri-history-line"></i> 更新日志</button>
+        </div>
+
+        <!-- 列表容器 -->
+        <div id="postList" class="post-list"></div>
+        <div id="scheduledList" class="post-list" style="display: none;"></div>
+        <div id="draftList" class="post-list" style="display: none;"></div>
+        <div id="changelogList" class="post-list" style="display: none;"></div>
+    </div>
+
+    <!-- 移动端底部导航栏 -->
+    <div class="bottom-nav">
+        <button class="nav-item active" data-tab="published"><i class="ri-rocket-line"></i><span>发布</span></button>
+        <button class="nav-item" data-tab="scheduled"><i class="ri-time-line"></i><span>定时</span></button>
+        <div class="nav-center-btn" id="mobileCenterBtn"><i class="ri-add-line"></i></div>
+        <button class="nav-item" data-tab="draft"><i class="ri-draft-line"></i><span>草稿</span></button>
+        <button class="nav-item" data-tab="changelog"><i class="ri-history-line"></i><span>日志</span></button>
+    </div>
+    <!-- 中央按钮弹出菜单 -->
+    <div class="action-sheet-overlay" id="actionSheetOverlay"></div>
+    <div class="action-sheet" id="actionSheet">
+        <button class="action-sheet-item" id="mobileNewPost"><i class="ri-add-circle-line"></i> 新建发布</button>
+        <button class="action-sheet-item" id="mobileNewChangelog"><i class="ri-history-line"></i> 新增更新日志</button>
+    </div>
+</div>
+
+<!-- 全屏模态窗 -->
+<div id="modalOverlay" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h2 id="modalTitle"><i class="ri-edit-box-line"></i> 新建发布</h2>
+            <button class="modal-close" id="closeModalBtn"><i class="ri-close-line"></i></button>
+        </div>
+        <div class="modal-body-scroll">
+            <form id="postForm">
+                <div id="publishFields">
+                    <div class="form-group">
+                        <label><i class="ri-calendar-todo-line"></i> 生效日期 (YYYY-MM-DD)</label>
+                        <input type="date" id="date" required>
+                    </div>
+                    <div class="type-selector">
+                        <label><input type="radio" name="publishType" value="immediate"> <i class="ri-flashlight-line"></i> 立即发布</label>
+                        <label><input type="radio" name="publishType" value="scheduled" checked> <i class="ri-alarm-line"></i> 定时发布（当日00:00自动发布）</label>
+                    </div>
+                    <div class="section-title"><i class="ri-music-2-line"></i> 音乐模块</div>
+                    <div class="form-group"><label><i class="ri-headphone-line"></i> 标题</label><input type="text" id="musicTitle" placeholder="如：Like A Star"></div>
+                    <div class="form-group"><label><i class="ri-user-star-line"></i> 艺术家</label><input type="text" id="musicArtist" placeholder="Youngso Kim"></div>
+                    <div class="form-group"><label><i class="ri-image-line"></i> 封面URL</label><input type="url" id="musicCover" placeholder="https://..."></div>
+                    <div class="form-group"><label><i class="ri-play-list-line"></i> 音频URL</label><input type="url" id="musicSrc" placeholder="音频链接 或 网易云音乐ID"></div>
+                    
+                    <div class="section-title"><i class="ri-double-quotes-L"></i> 句子摘录</div>
+                    <div class="form-group"><label><i class="ri-quote-text"></i> 内容</label><textarea id="sentenceText" class="auto-resize-textarea" placeholder="人生如逆旅，我亦是行人..."></textarea></div>
+                    <div class="form-group"><label><i class="ri-user-3-line"></i> 作者</label><input type="text" id="sentenceAuthor" placeholder="苏轼"></div>
+                    <div class="form-group">
+                        <label><i class="ri-image-line"></i> 句子配图URL</label>
+                        <input type="url" id="sentenceImageUrl" placeholder="https://...">
+                        <div class="upload-preview" id="sentenceImagePreviewContainer" style="display: none;">
+                            <img id="sentenceImagePreview" src="" alt="预览图">
+                        </div>
+                    </div>
+                    
+                    <div class="section-title"><i class="ri-article-line"></i> 深度文章</div>
+                    <div class="form-group"><label><i class="ri-title-line"></i> 标题</label><input type="text" id="articleTitle" placeholder="我应该怎样活着"></div>
+                    <div class="form-group"><label><i class="ri-user-smile-line"></i> 作者</label><input type="text" id="articleAuthor" placeholder="刘金增 等"></div>
+                    <div class="form-group"><label><i class="ri-file-text-line"></i> 正文</label><textarea id="articleContent" class="auto-resize-textarea" placeholder="完整文章内容..."></textarea></div>
+                    <div class="form-group">
+                        <label><i class="ri-image-line"></i> 文章配图URL</label>
+                        <input type="url" id="articleImageUrl" placeholder="https://...">
+                        <div class="upload-preview" id="imagePreviewContainer" style="display: none;">
+                            <img id="imagePreview" src="" alt="预览图">
+                        </div>
+                    </div>
+                </div>
+                <div id="changelogFields" style="display: none;">
+                    <div class="form-group"><label><i class="ri-number-1"></i> 版本号</label><input type="text" id="changelogVersion" placeholder="例如 1.0.1"></div>
+                    <div class="form-group"><label><i class="ri-calendar-todo-line"></i> 日期</label><input type="date" id="changelogDate"></div>
+                    <div class="form-group"><label><i class="ri-file-text-line"></i> 更新内容</label><textarea id="changelogContent" rows="4" placeholder="• 新增xxx功能\n• 修复xxx问题"></textarea></div>
+                </div>
+            </form>
+        </div>
+        <div class="form-actions">
+            <button type="button" class="btn cancel" id="cancelFormBtn"><i class="ri-close-line"></i> 取消</button>
+            <button type="button" class="btn" id="saveDraftBtn" style="background:#f59e0b;"><i class="ri-save-line"></i> 保存草稿</button>
+            <button type="button" class="btn" id="submitFormBtn"><i class="ri-save-3-line"></i> 保存发布</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/script.js"></script>
+</body>
+</html>
