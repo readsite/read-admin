@@ -1,3 +1,10 @@
+// 分页状态
+let pagination = {
+    published: { page: 1, limit: 20, total: 0, loading: false, hasMore: true },
+    scheduled: { page: 1, limit: 20, total: 0, loading: false, hasMore: true },
+    draft: { page: 1, limit: 20, total: 0, loading: false, hasMore: true },
+    changelog: { page: 1, limit: 20, total: 0, loading: false, hasMore: true }
+};
 // ==================== API 基础配置 ====================
 const API_BASE = 'https://solitudenook.top';
 
@@ -59,7 +66,10 @@ async function apiRequest(endpoint, options = {}) {
     }
     return response.json();
 }
-
+if (window.innerWidth <= 768) {
+    const trashBtn = document.getElementById('trashBinBtn');
+    if (trashBtn) trashBtn.style.display = 'inline-flex';
+}
 // ==================== 登录 ====================
 document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -138,35 +148,113 @@ window.addEventListener('storage', (e) => {
 });
 
 // ==================== 数据加载函数（增强错误处理和格式兼容） ====================
-async function loadPosts() {
-    try {
-        const response = await apiRequest('/api/posts?type=published');
-        // 兼容不同返回格式：直接数组 或 { posts: [], data: [] }
-        let posts = Array.isArray(response) ? response : (response.posts || response.data || []);
-        if (!Array.isArray(posts)) posts = [];
-        fullDataCache.published = posts;
-        pageLimit.published = 15; // 重置分页
-        renderTabData('published');
-    } catch (err) {
-        console.error('加载已发布内容失败', err);
+async function loadPosts(append = false) {
+    const tab = 'published';
+    const pg = pagination[tab];
+    
+    if (pg.loading) return;
+    if (!append) {
+        pg.page = 1;
+        pg.hasMore = true;
+        fullDataCache.published = [];
+        // 清空容器并显示加载指示器（可选）
         const container = document.getElementById('postList');
-        if (container) {
-            container.innerHTML = '<div class="empty-message"><i class="ri-error-warning-line"></i> 加载失败，请刷新重试</div>';
-        }
+        if (container) container.innerHTML = '<div class="loading-spinner"><i class="ri-loader-4-line spin"></i> 加载中...</div>';
     }
-}
-
-async function loadScheduled() {
+    if (!pg.hasMore && append) return;
+    
+    pg.loading = true;
+    
     try {
-        const response = await apiRequest('/api/scheduled');
-        let tasks = Array.isArray(response) ? response : (response.tasks || response.data || []);
-        if (!Array.isArray(tasks)) tasks = [];
-        fullDataCache.scheduled = tasks;
-        pageLimit.scheduled = 15;
-        renderTabData('scheduled');
+        const res = await apiRequest(`/api/posts?type=published&page=${pg.page}&limit=${pg.limit}`);
+        const items = res.items || [];
+        pg.total = res.total || 0;
+        pg.hasMore = items.length === pg.limit && (pg.page * pg.limit) < pg.total;
+        
+        if (append) {
+            fullDataCache.published = [...fullDataCache.published, ...items];
+        } else {
+            fullDataCache.published = items;
+        }
+        
+        renderTabData(tab);
+        
+        // 在列表末尾添加“加载更多”按钮（如果还有更多数据）
+        if (pg.hasMore && append) {
+            const container = document.getElementById('postList');
+            if (container && !container.querySelector('.pagination-more')) {
+                const moreBtn = document.createElement('div');
+                moreBtn.className = 'pagination-more';
+                moreBtn.innerHTML = `<button class="load-more-btn" onclick="loadMore('${tab}')"><i class="ri-arrow-down-line"></i> 加载更多</button>`;
+                container.appendChild(moreBtn);
+            }
+        } else if (!pg.hasMore && append) {
+            // 可选：显示“没有更多了”
+            const container = document.getElementById('postList');
+            if (container && !container.querySelector('.no-more')) {
+                const noMore = document.createElement('div');
+                noMore.className = 'no-more';
+                noMore.innerHTML = '<i class="ri-information-line"></i> 没有更多内容了';
+                container.appendChild(noMore);
+            }
+        }
+    } catch (err) {
+    console.error('加载已发布内容失败', err);
+    const container = document.getElementById('postList');
+    if (container) {
+        container.innerHTML = `<div class="empty-message"><i class="ri-error-warning-line"></i> 加载失败：${err.message || '请检查网络或联系管理员'}</div>`;
+    }
+} finally {
+    pg.loading = false;
+}
+}
+async function loadScheduled(append = false) {
+    const tab = 'scheduled';
+    const pg = pagination[tab];
+    if (pg.loading) return;
+    if (!append) {
+        pg.page = 1;
+        pg.hasMore = true;
+        fullDataCache.scheduled = [];
+    }
+    if (!pg.hasMore && append) return;
+    pg.loading = true;
+
+    const container = document.getElementById('scheduledList');
+    if (append && container) {
+        container.insertAdjacentHTML('beforeend', '<div class="loading-more">加载中...</div>');
+    }
+
+    try {
+        const res = await apiRequest(`/api/scheduled?page=${pg.page}&limit=${pg.limit}`);
+        const items = res.items || [];
+        pg.total = res.total || 0;
+        pg.hasMore = items.length === pg.limit && (pg.page * pg.limit) < pg.total;
+
+        if (append) {
+            fullDataCache.scheduled = [...fullDataCache.scheduled, ...items];
+        } else {
+            fullDataCache.scheduled = items;
+        }
+
+        if (append && container) {
+            const loadingDiv = container.querySelector('.loading-more');
+            if (loadingDiv) loadingDiv.remove();
+        }
+
+        renderTabData(tab);
+
+        if (pg.hasMore && append) {
+            const moreBtn = document.createElement('div');
+            moreBtn.className = 'pagination-more';
+            moreBtn.innerHTML = `<button class="load-more-btn" onclick="loadMore('${tab}')"><i class="ri-arrow-down-line"></i> 加载更多</button>`;
+            container.appendChild(moreBtn);
+        }
     } catch (err) {
         console.error('加载定时任务失败', err);
-        document.getElementById('scheduledList').innerHTML = '<div class="empty-message"><i class="ri-error-warning-line"></i> 加载失败，请刷新重试</div>';
+        if (container) container.innerHTML = '<div class="empty-message"><i class="ri-error-warning-line"></i> 加载失败，请刷新重试</div>';
+    } finally {
+        pg.loading = false;
     }
 }
 
@@ -350,8 +438,13 @@ function renderTabData(tab) {
 
 // 加载更多（移动端）
 window.loadMore = function(tab) {
-    pageLimit[tab] += 15;
-    renderTabData(tab);
+    const pg = pagination[tab];
+    if (pg.loading || !pg.hasMore) return;
+    pg.page++;
+    if (tab === 'published') loadPosts(true);
+    else if (tab === 'scheduled') loadScheduled(true);
+    else if (tab === 'draft') loadDrafts(true);
+    else if (tab === 'changelog') loadChangelogs(true);
 };
 
 // 切换标签页
@@ -371,12 +464,30 @@ function switchTab(tab) {
     const targetId = getContainerId(tab);
     document.getElementById(targetId).style.display = 'grid';
     // 加载数据
-    if (tab === 'published') loadPosts();
-    else if (tab === 'scheduled') loadScheduled();
-    else if (tab === 'draft') loadDrafts();
-    else if (tab === 'changelog') loadChangelogs();
+    if (tab === 'published') loadPosts(false);
+    else if (tab === 'scheduled') loadScheduled(false);
+    else if (tab === 'draft') loadDrafts(false);
+    else if (tab === 'changelog') loadChangelogs(false);
 }
-
+function setupInfiniteScroll() {
+    const container = document.getElementById(getContainerId(currentTab));
+    if (!container) return;
+    
+    const onScroll = () => {
+        const scrollTop = container.scrollTop;
+        const clientHeight = container.clientHeight;
+        const scrollHeight = container.scrollHeight;
+        if (scrollTop + clientHeight >= scrollHeight - 100) { // 距离底部100px时触发
+            const pg = pagination[currentTab];
+            if (!pg.loading && pg.hasMore) {
+                loadMore(currentTab);
+            }
+        }
+    };
+    
+    container.addEventListener('scroll', onScroll);
+    // 记得移除事件监听
+}
 function loadCurrentTab() {
     switchTab(currentTab);
 }
@@ -701,20 +812,25 @@ async function handlePublish() {
 
         // 编辑已发布内容
         if (currentMode === 'editPost' && editTargetDate) {
-            // 如果日期改变，删除旧的
-            if (editTargetDate !== formData.date) {
-                await deletePostByDate(editTargetDate);
-            }
-            if (formData.publishType === 'immediate') {
-                await addPost(formData);
-            } else {
-                await addScheduled({ date: formData.date, publishTime: `${formData.date}T00:00:00`, content: formData });
-            }
-            alert('更新成功');
-            closeModal();
-            notifyDataUpdate();
-            return;
+    if (editTargetDate !== formData.date) {
+        // 日期已改变：先删除旧日期的内容
+        await deletePostByDate(editTargetDate);
+        // 在新日期下新增内容（无法保留原统计数据，可提示用户）
+        if (formData.publishType === 'immediate') {
+            await addPost(formData);
+        } else {
+            await addScheduled({ date: formData.date, publishTime: `${formData.date}T00:00:00`, content: formData });
         }
+        alert(`内容已从 ${editTargetDate} 移至 ${formData.date}，原互动数据已清零。`);
+    } else {
+        // 日期未变：使用 PUT 更新内容
+        await updatePost(editTargetDate, formData);
+        alert('内容已更新');
+    }
+    closeModal();
+    notifyDataUpdate();
+    return;
+}
 
         // 编辑定时任务
         if (currentMode === 'editScheduled' && editTargetId) {
@@ -838,6 +954,322 @@ const articleImageUrl = document.getElementById('articleImageUrl');
 const sentenceImageUrl = document.getElementById('sentenceImageUrl');
 setupUrlPreview(articleImageUrl, document.getElementById('imagePreview'), document.getElementById('imagePreviewContainer'));
 setupUrlPreview(sentenceImageUrl, document.getElementById('sentenceImagePreview'), document.getElementById('sentenceImagePreviewContainer'));
+(function() {
+    // 确保全局函数和变量不冲突
+    if (window._trashInitialized) return;
+    window._trashInitialized = true;
+
+    // ========== 回收站 API 封装 ==========
+    const API_BASE_TRASH = window.API_BASE || 'https://solitudenook.top';
+    
+async function addToTrash(originalType, originalId, dataPayload) {
+    const token = sessionStorage.getItem('read_token');
+    if (!token) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/trash`, {  // 使用 API_BASE
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                type: originalType,
+                originalId: originalId,
+                data: dataPayload,
+                deletedAt: new Date().toISOString()
+            })
+        });
+        if (!res.ok) throw new Error('addToTrash failed');
+        return await res.json();
+    } catch (err) {
+        console.error('移入回收站失败', err);
+        throw err;
+    }
+}
+
+    async function fetchTrashItems() {
+        const token = sessionStorage.getItem('read_token');
+        if (!token) return [];
+        const res = await fetch(`${API_BASE_TRASH}/api/trash`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('获取回收站失败');
+        const data = await res.json();
+        return Array.isArray(data) ? data : (data.items || []);
+    }
+
+    async function restoreTrashItem(trashId, type, originalData) {
+        // 恢复：根据类型调用相应创建接口，成功后删除回收站记录
+        const token = sessionStorage.getItem('read_token');
+        if (!token) throw new Error('未登录');
+        let restoreSuccess = false;
+        if (type === 'post') {
+            // 已发布内容
+            const res = await fetch(`${API_BASE_TRASH}/api/posts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(originalData)
+            });
+            if (res.ok) restoreSuccess = true;
+        } else if (type === 'scheduled') {
+            const payload = { date: originalData.date, publishTime: `${originalData.date}T00:00:00`, content: originalData };
+            const res = await fetch(`${API_BASE_TRASH}/api/scheduled`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) restoreSuccess = true;
+        } else if (type === 'draft') {
+            const res = await fetch(`${API_BASE_TRASH}/api/drafts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(originalData)
+            });
+            if (res.ok) restoreSuccess = true;
+        } else if (type === 'changelog') {
+            const res = await fetch(`${API_BASE_TRASH}/api/changelogs`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(originalData)
+            });
+            if (res.ok) restoreSuccess = true;
+        }
+        if (restoreSuccess) {
+            // 删除回收站条目
+            await fetch(`${API_BASE_TRASH}/api/trash/${trashId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            return true;
+        }
+        return false;
+    }
+
+    async function permanentDeleteTrashItem(trashId) {
+        const token = sessionStorage.getItem('read_token');
+        if (!token) throw new Error('未登录');
+        const res = await fetch(`${API_BASE_TRASH}/api/trash/${trashId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('彻底删除失败');
+        return true;
+    }
+
+    // 打开回收站模态框并加载数据
+    async function openTrashModal() {
+        const modal = document.getElementById('trashModal');
+        if (!modal) return;
+        modal.classList.add('active');
+        await loadTrashData();
+    }
+
+    async function loadTrashData() {
+        const container = document.getElementById('trashListContainer');
+        if (!container) return;
+        try {
+            const items = await fetchTrashItems();
+            const countSpan = document.getElementById('trashCount');
+            if (countSpan) countSpan.innerText = `${items.length} 项`;
+            if (!items.length) {
+                container.innerHTML = '<div class="empty-trash"><i class="ri-recycle-line"></i> 回收站为空</div>';
+                return;
+            }
+            let html = '';
+            for (const item of items) {
+                const typeLabel = { post: '已发布内容', scheduled: '定时任务', draft: '草稿', changelog: '更新日志' }[item.type] || '内容';
+                let preview = '';
+                if (item.type === 'post') {
+                    preview = `日期: ${item.data.date} | 音乐: ${item.data.music?.title || '无'} | 句子: ${(item.data.sentence?.text || '').substring(0, 50)}`;
+                } else if (item.type === 'scheduled') {
+                    preview = `定时发布: ${item.data.date} | 内容预览: ${item.data.music?.title || '无音乐'}`;
+                } else if (item.type === 'draft') {
+                    preview = `草稿日期: ${item.data.date} | 标题: ${item.data.music?.title || '无'}`;
+                } else if (item.type === 'changelog') {
+                    preview = `v${item.data.version} ${item.data.date} : ${item.data.content.substring(0, 60)}`;
+                }
+                html += `
+                    <div class="trash-card" data-id="${item.id}">
+                        <div class="trash-card-header">
+                            <div class="trash-type-badge"><i class="ri-delete-bin-line"></i> ${typeLabel}</div>
+                            <div class="trash-original-id">ID: ${escapeHtml(String(item.originalId || '—'))}</div>
+                        </div>
+                        <div class="trash-preview">${escapeHtml(preview)}</div>
+                        <div class="trash-actions">
+                            <button class="restore-btn" data-id="${item.id}" data-type="${item.type}" data-data='${JSON.stringify(item.data).replace(/'/g, "&#39;")}'><i class="ri-refund-line"></i> 恢复</button>
+                            <button class="permanent-btn" data-id="${item.id}"><i class="ri-delete-bin-2-line"></i> 彻底删除</button>
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+            // 绑定恢复和彻底删除事件
+            container.querySelectorAll('.restore-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const id = btn.dataset.id;
+                    const type = btn.dataset.type;
+                    let rawData = btn.dataset.data;
+                    try {
+                        const dataObj = JSON.parse(rawData);
+                        if (confirm(`恢复该项内容？恢复后将重新出现在对应列表中。`)) {
+                            await restoreTrashItem(id, type, dataObj);
+                            alert('恢复成功');
+                            await loadTrashData();
+                            // 刷新主界面相关数据
+                            if (window.refreshCurrentTabData) window.refreshCurrentTabData();
+                            else if (window.loadCurrentTab) window.loadCurrentTab();
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        alert('恢复失败: ' + err.message);
+                    }
+                });
+            });
+            container.querySelectorAll('.permanent-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const id = btn.dataset.id;
+                    if (confirm('彻底删除后将无法恢复，确定吗？')) {
+                        try {
+                            await permanentDeleteTrashItem(id);
+                            alert('已彻底删除');
+                            await loadTrashData();
+                        } catch (err) {
+                            alert('删除失败');
+                        }
+                    }
+                });
+            });
+        } catch (err) {
+            console.error(err);
+            container.innerHTML = '<div class="empty-trash"><i class="ri-error-warning-line"></i> 加载回收站失败，请稍后重试</div>';
+        }
+    }
+
+    function closeTrashModal() {
+        const modal = document.getElementById('trashModal');
+        if (modal) modal.classList.remove('active');
+    }
+
+    // 劫持原有删除函数，先移入回收站再调用原删除API（需保存原始数据）
+    // 保存原始全局删除函数的引用
+    const originalDeletePost = window.deletePost;
+    const originalDeleteScheduled = window.deleteScheduled;
+    const originalDeleteDraft = window.deleteDraft;
+    const originalDeleteChangelog = window.deleteChangelog;
+
+    // 增强 deletePost
+    window.deletePost = async function(date) {
+        if (!confirm('删除后内容将移至回收站，可恢复。确定删除吗？')) return;
+        try {
+            // 获取帖子详情（从缓存或接口）
+            let postData = null;
+            if (fullDataCache && fullDataCache.published) {
+                const cached = fullDataCache.published.find(p => p.date === date);
+                if (cached) postData = cached.content ? cached.content : cached;
+            }
+            if (!postData) {
+                const response = await apiRequest(`/api/posts/${date}`);
+                postData = response.content ? response.content : response;
+            }
+            if (postData) {
+                await addToTrash('post', date, postData);
+            }
+            // 调用原有删除
+            await deletePostByDate(date);
+            notifyDataUpdate();
+        } catch (err) {
+            console.error('删除失败', err);
+            alert('删除失败: ' + (err.message || '未知错误'));
+        }
+    };
+
+    window.deleteScheduled = async function(id) {
+        if (!confirm('删除定时任务后将移入回收站，确定删除？')) return;
+        try {
+            const tasks = await apiRequest('/api/scheduled');
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                await addToTrash('scheduled', id, task.content);
+            }
+            await deleteScheduledById(id);
+            notifyDataUpdate();
+        } catch (err) {
+            alert('删除失败');
+        }
+    };
+
+    window.deleteDraft = async function(id) {
+        if (!confirm('删除草稿后将移入回收站，可恢复。确定删除？')) return;
+        try {
+            const drafts = await apiRequest('/api/drafts');
+            const draft = drafts.find(d => d.id === id);
+            if (draft) {
+                await addToTrash('draft', id, draft);
+            }
+            await deleteDraftById(id);
+            notifyDataUpdate();
+        } catch (err) {
+            alert('删除失败');
+        }
+    };
+
+    window.deleteChangelog = async function(id) {
+        if (!confirm('删除日志后将移入回收站，确定删除？')) return;
+        try {
+            const logs = await apiRequest('/api/changelogs');
+            const log = logs.find(l => l.id === id);
+            if (log) {
+                await addToTrash('changelog', id, log);
+            }
+            await deleteChangelogById(id);
+            notifyDataUpdate();
+        } catch (err) {
+            alert('删除失败');
+        }
+    };
+
+// 劫持原有 editPost 实现增强回收站
+if (window.editPost) {
+    const originalEditPost = window.editPost;
+    window.editPost = async function(date) {
+        // 调用原始编辑前暂存原数据用于后续可能的删除回收
+        let originalPostData = null;
+        try {
+            if (fullDataCache && fullDataCache.published) {
+                const cached = fullDataCache.published.find(p => p.date === date);
+                if (cached) originalPostData = cached.content ? cached.content : cached;
+            }
+            if (!originalPostData) {
+                const response = await apiRequest(`/api/posts/${date}`);
+                originalPostData = response.content ? response.content : response;
+            }
+            window.__tempOriginalPostForTrash = { date, data: originalPostData };
+        } catch(e) { console.warn(e);}
+        await originalEditPost(date);
+    };
+}
+
+    // 绑定回收站按钮事件
+    const trashBtn = document.getElementById('trashBinBtn');
+    if (trashBtn) {
+        trashBtn.addEventListener('click', openTrashModal);
+    }
+    const closeTrashBtn = document.getElementById('closeTrashBtn');
+    const closeTrashFooter = document.getElementById('closeTrashFooterBtn');
+    if (closeTrashBtn) closeTrashBtn.addEventListener('click', closeTrashModal);
+    if (closeTrashFooter) closeTrashFooter.addEventListener('click', closeTrashModal);
+    const trashModalOverlay = document.getElementById('trashModal');
+    if (trashModalOverlay) {
+        trashModalOverlay.addEventListener('click', (e) => {
+            if (e.target === trashModalOverlay) closeTrashModal();
+        });
+    }
+
+    // 导出部分辅助方法供全局使用
+    window._refreshTrash = loadTrashData;
+})();
 
 // DOM 元素引用
 const dateInput = document.getElementById('date');

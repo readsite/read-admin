@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
+    <link href="img/favicon.png" rel="icon">
     <title>Read.管理后台 | 内容发布中心</title>
     <link href="font/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
@@ -36,6 +37,7 @@
             <div class="header-buttons">
                 <button class="btn" id="newPostBtn"><i class="ri-add-line"></i> 新建发布</button>
                 <button class="btn" id="newChangelogBtn" style="background:#6c5ce7;"><i class="ri-history-line"></i> 新增日志</button>
+				<button class="btn" id="trashBinBtn" style="background:#475569;"><i class="ri-delete-bin-7-line"></i> 回收站</button>
                 <button class="btn logout-btn" id="logoutBtn"><i class="ri-logout-box-line"></i> 退出</button>
             </div>
         </div>
@@ -132,7 +134,26 @@
         </div>
     </div>
 </div>
-
+<div id="trashModal" class="modal-overlay trash-modal">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h2><i class="ri-delete-bin-7-line"></i> 回收站</h2>
+            <button class="modal-close" id="closeTrashBtn"><i class="ri-close-line"></i></button>
+        </div>
+        <div class="modal-body-scroll" style="padding: 16px 24px;">
+            <div class="trash-stats">
+                <span><i class="ri-information-line"></i> 删除的内容暂存于此，可恢复或彻底删除</span>
+                <span id="trashCount">0</span>
+            </div>
+            <div id="trashListContainer" class="trash-list">
+                <div class="empty-trash"><i class="ri-recycle-line"></i> 回收站为空</div>
+            </div>
+        </div>
+        <div class="form-actions" style="justify-content: flex-end;">
+            <button type="button" class="btn cancel" id="closeTrashFooterBtn">关闭</button>
+        </div>
+    </div>
+</div>
 <script src="js/script.js"></script>
 </body>
 </html>
