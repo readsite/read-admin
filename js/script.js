@@ -601,64 +601,102 @@ async function saveAsDraft() {
 }
 
 async function handlePublish() {
-    const formData = collectFormData();
-    if (!formData.date) {
-        alert('请选择日期');
-        return;
+  const formData = collectFormData();
+  if (!formData.date) {
+    alert('请选择日期');
+    return;
+  }
+  try {
+    // 1. 草稿转发布（草稿编辑后直接发布）
+    if (currentMode === 'editDraft' && editTargetId) {
+      if (formData.publishType === 'immediate') {
+        await addPost(formData);
+      } else {
+        await addScheduled({ date: formData.date, publishTime: `${formData.date}T00:00:00`, content: formData });
+      }
+      await deleteDraftById(editTargetId);
+      alert('发布成功');
+      closeModal();
+      notifyDataUpdate();
+      return;
     }
-    try {
-        // 草稿转发布
-        if (currentMode === 'editDraft' && editTargetId) {
-            if (formData.publishType === 'immediate') {
-                await addPost(formData);
-            } else {
-                await addScheduled({ date: formData.date, publishTime: `${formData.date}T00:00:00`, content: formData });
+
+    // 2. 编辑已发布内容（核心修改：支持日期迁移并保留统计数据）
+    if (currentMode === 'editPost' && editTargetDate) {
+      const oldDate = editTargetDate;
+      const newDate = formData.date;
+
+      // 日期发生变化 → 使用迁移接口（保留统计数据）
+      if (oldDate !== newDate) {
+        try {
+          const response = await fetch(`${API_BASE}/api/posts/${oldDate}/move`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${getAuthToken()}`
+            },
+            body: JSON.stringify({ newDate, content: formData })
+          });
+
+          if (!response.ok) {
+            if (response.status === 409) {
+              alert(`日期 ${newDate} 已有内容发布，请选择其他日期`);
+              return;
             }
-            await deleteDraftById(editTargetId);
-            alert('发布成功');
-            closeModal();
-            notifyDataUpdate();
-            return;
+            throw new Error('迁移失败');
+          }
+
+          const result = await response.json();
+          // 迁移本地收藏状态（localStorage）
+          await migrateLocalFavorites(oldDate, newDate);
+          
+          alert(`内容已从 ${oldDate} 移至 ${newDate}，统计数据已保留，您的收藏也已同步迁移`);
+          closeModal();
+          notifyDataUpdate();
+
+          // 如果收藏页面当前打开，刷新其内容
+          if (document.body.classList.contains('favorites-open') && typeof renderFavorites === 'function') {
+            renderFavorites();
+          }
+          return;
+        } catch (err) {
+          console.error('日期迁移失败', err);
+          alert('修改日期失败：' + (err.message || '请检查网络或联系管理员'));
+          return;
         }
-        // 编辑已发布内容
-        if (currentMode === 'editPost' && editTargetDate) {
-            if (editTargetDate !== formData.date) {
-                await deletePostByDate(editTargetDate);
-                if (formData.publishType === 'immediate') {
-                    await addPost(formData);
-                } else {
-                    await addScheduled({ date: formData.date, publishTime: `${formData.date}T00:00:00`, content: formData });
-                }
-                alert(`内容已从 ${editTargetDate} 移至 ${formData.date}，原互动数据已清零。`);
-            } else {
-                await updatePost(editTargetDate, formData);
-                alert('内容已更新');
-            }
-            closeModal();
-            notifyDataUpdate();
-            return;
-        }
-        // 编辑定时任务
-        if (currentMode === 'editScheduled' && editTargetId) {
-            await updateScheduled(editTargetId, { date: formData.date, publishTime: `${formData.date}T00:00:00`, content: formData });
-            alert('定时任务已更新');
-            closeModal();
-            notifyDataUpdate();
-            return;
-        }
-        // 新增
-        if (formData.publishType === 'immediate') {
-            await addPost(formData);
-        } else {
-            await addScheduled({ date: formData.date, publishTime: `${formData.date}T00:00:00`, content: formData });
-        }
-        alert('发布成功');
+      } 
+      // 日期未变 → 普通更新
+      else {
+        await updatePost(editTargetDate, formData);
+        alert('内容已更新');
         closeModal();
         notifyDataUpdate();
-    } catch (err) {
-        console.error('发布失败', err);
-        alert('发布失败，请重试');
+        return;
+      }
     }
+
+    // 3. 编辑定时任务
+    if (currentMode === 'editScheduled' && editTargetId) {
+      await updateScheduled(editTargetId, { date: formData.date, publishTime: `${formData.date}T00:00:00`, content: formData });
+      alert('定时任务已更新');
+      closeModal();
+      notifyDataUpdate();
+      return;
+    }
+
+    // 4. 新增发布（正常模式）
+    if (formData.publishType === 'immediate') {
+      await addPost(formData);
+    } else {
+      await addScheduled({ date: formData.date, publishTime: `${formData.date}T00:00:00`, content: formData });
+    }
+    alert('发布成功');
+    closeModal();
+    notifyDataUpdate();
+  } catch (err) {
+    console.error('发布失败', err);
+    alert('发布失败，请重试');
+  }
 }
 
 // ==================== 更新日志相关 ====================
@@ -974,15 +1012,36 @@ window.deleteDraft = async function (id) {
 window.deleteChangelog = async function (id) {
     if (!confirm('删除日志后将移入回收站，确定删除？')) return;
     try {
-        const logs = await apiRequest('/api/changelogs');
+        // 修复：正确解析分页响应，获取 items 数组
+        const response = await apiRequest('/api/changelogs');
+        const logs = response.items || [];
         const log = logs.find(l => l.id === id);
+        
+        let trashAdded = false;
         if (log) {
-            await addToTrash('changelog', id, log);
+            try {
+                await addToTrash('changelog', id, log);
+                trashAdded = true;
+            } catch (trashErr) {
+                console.warn('移入回收站失败，将直接删除日志', trashErr);
+                alert('回收站记录失败，但日志仍会删除');
+            }
+        } else {
+            console.warn('未找到日志详情，跳过回收站记录，直接删除');
         }
+        
+        // 执行删除
         await deleteChangelogById(id);
         notifyDataUpdate();
+        
+        if (!trashAdded && log) {
+            alert('日志已删除，但回收站记录失败，请稍后手动清理');
+        } else if (!log) {
+            alert('日志已删除（未记录回收站）');
+        }
     } catch (err) {
-        alert('删除失败');
+        console.error('删除日志失败', err);
+        alert('删除失败：' + (err.message || '未知错误，请检查网络或联系管理员'));
     }
 };
 
@@ -1094,6 +1153,18 @@ if (checkAuth()) {
 
 // ==================== DOM 元素获取与事件绑定 ====================
 document.addEventListener('DOMContentLoaded', () => {
+// 密码显示/隐藏切换
+const togglePwd = document.getElementById('togglePassword');
+const pwdInput = document.getElementById('password');
+if (togglePwd && pwdInput) {
+    togglePwd.addEventListener('click', function () {
+        const type = pwdInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        pwdInput.setAttribute('type', type);
+        // 切换图标样式
+        this.classList.toggle('ri-eye-off-line');
+        this.classList.toggle('ri-eye-line');
+    });
+}
     // 获取表单元素引用
     dateInput = document.getElementById('date');
     musicTitle = document.getElementById('musicTitle');

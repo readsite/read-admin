@@ -672,23 +672,27 @@ body {
 @media (max-width: 768px) {
     .header {
         display: flex;
-        flex-direction: row;      /* 水平排列 */
-        justify-content: space-between; /* 标题左，按钮组右 */
-        align-items: center;      /* 垂直居中 */
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
         gap: 8px;
-        flex-wrap: wrap;          /* 极端窄屏时允许折行，但通常够用 */
+        flex-wrap: wrap;
     }
     .header h1 {
-        font-size: 1.2rem;        /* 缩小标题字号避免溢出 */
+        font-size: 1.2rem;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-width: 60%;           /* 给按钮组留空间 */
+        max-width: 55%;
     }
     .header-buttons {
         display: flex;
         gap: 8px;
-        flex-shrink: 0;           /* 按钮组不缩小 */
+        flex-shrink: 0;
+    }
+    /* 移动端只显示回收站和退出按钮，新建发布和新增日志通过中央菜单访问 */
+    .header-buttons .btn:not(.logout-btn):not(#trashBinBtn) {
+        display: none;
     }
     .header-buttons .btn {
         font-size: 0.75rem;
@@ -698,14 +702,8 @@ body {
     .app-container {
         padding: 16px 12px 90px 12px;
     }
-    .header h1 {
-        font-size: 1.4rem;
-    }
-    /* 隐藏PC顶部tabs和PC新建按钮 */
+    /* 隐藏PC顶部tabs */
     .tabs {
-        display: none;
-    }
-    .header-buttons .btn:not(.logout-btn) {
         display: none;
     }
     /* 卡片两列布局 */
@@ -746,136 +744,155 @@ body {
         margin-top: 20px;
     }
 }
-       /* 回收站模态窗额外样式 */
-	   /* 回收站弹窗全屏 */
-	   .modal-overlay.trash-modal {
-	       align-items: center;
-	       justify-content: center;
-	   }
-	   .modal-overlay.trash-modal .modal-container {
-	       width: 100vw;
-	       height: 100vh;
-	       max-width: 100%;
-	       max-height: 100%;
-	       border-radius: 0;
-	       margin: 0;
-	       display: flex;
-	       flex-direction: column;
-	   }
-	   /* 确保内容区可滚动 */
-	   .modal-overlay.trash-modal .modal-body-scroll {
-	       flex: 1;
-	       overflow-y: auto;
-	   }
-        .trash-modal .modal-container {
-            max-width: 1400px;
-            max-height: 100vh;
-            border-radius: 28px;
-            width: 100vw;
-            height: auto;
-        }
-        .trash-stats {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-            padding: 0 4px;
-            color: #5b6e8c;
-            font-size: 0.85rem;
-        }
-        .trash-list {
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-            max-height: 55vh;
-            overflow-y: auto;
-            padding-right: 4px;
-        }
-        .trash-card {
-            background: #f8fafc;
-            border-radius: 20px;
-            padding: 16px;
-            border: 1px solid #eef2f6;
-            transition: 0.2s;
-        }
-        .trash-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 12px;
-        }
-        .trash-type-badge {
-            background: #e2e8f0;
-            padding: 4px 12px;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: #1e293b;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .trash-original-id {
-            font-size: 0.7rem;
-            color: #6c7a91;
-            font-family: monospace;
-        }
-        .trash-preview {
-            font-size: 0.85rem;
-            color: #334155;
-            margin: 8px 0;
-            background: white;
-            padding: 8px 12px;
-            border-radius: 16px;
-            word-break: break-word;
-        }
-        .trash-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
-            margin-top: 12px;
-        }
-        .trash-actions button {
-            background: white;
-            border: 1px solid #e2e8f0;
-            padding: 6px 16px;
-            border-radius: 30px;
-            font-size: 0.75rem;
-            font-weight: 500;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: 0.2s;
-        }
-        .trash-actions button.restore-btn {
-            background: #eef2ff;
-            color: #2563eb;
-            border-color: #cbd5e1;
-        }
-        .trash-actions button.permanent-btn {
-            background: #fff1f0;
-            color: #e11d48;
-            border-color: #ffe4e2;
-        }
-        .empty-trash {
-            text-align: center;
-            padding: 48px 20px;
-            color: #94a3b8;
-        }
+
+/* 回收站模态窗额外样式 */
+.modal-overlay.trash-modal {
+    align-items: center;
+    justify-content: center;
+}
+.modal-overlay.trash-modal .modal-container {
+    width: 100vw;
+    height: 100vh;
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+}
+.modal-overlay.trash-modal .modal-body-scroll {
+    flex: 1;
+    overflow-y: auto;
+}
+.trash-modal .modal-container {
+    max-width: 1400px;
+    max-height: 100vh;
+    border-radius: 28px;
+    width: 100vw;
+    height: auto;
+}
+.trash-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding: 0 4px;
+    color: #5b6e8c;
+    font-size: 0.85rem;
+}
+.trash-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-height: 55vh;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+.trash-card {
+    background: #f8fafc;
+    border-radius: 20px;
+    padding: 16px;
+    border: 1px solid #eef2f6;
+    transition: 0.2s;
+}
+.trash-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.trash-type-badge {
+    background: #e2e8f0;
+    padding: 4px 12px;
+    border-radius: 30px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #1e293b;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.trash-original-id {
+    font-size: 0.7rem;
+    color: #6c7a91;
+    font-family: monospace;
+}
+.trash-preview {
+    font-size: 0.85rem;
+    color: #334155;
+    margin: 8px 0;
+    background: white;
+    padding: 8px 12px;
+    border-radius: 16px;
+    word-break: break-word;
+}
+.trash-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 12px;
+}
+.trash-actions button {
+    background: white;
+    border: 1px solid #e2e8f0;
+    padding: 6px 16px;
+    border-radius: 30px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: 0.2s;
+}
+.trash-actions button.restore-btn {
+    background: #eef2ff;
+    color: #2563eb;
+    border-color: #cbd5e1;
+}
+.trash-actions button.permanent-btn {
+    background: #fff1f0;
+    color: #e11d48;
+    border-color: #ffe4e2;
+}
+.empty-trash {
+    text-align: center;
+    padding: 48px 20px;
+    color: #94a3b8;
+}
 @media (min-width: 768px) {
     .bottom-nav,
     .action-sheet,
     .action-sheet-overlay {
         display: none !important;
     }
-	.trash-modal .modal-container {
-	    width: 100vw;
-	    max-height: 100vh;
-	}
-	.trash-card {
-	    padding: 12px;
-	}
+    .trash-modal .modal-container {
+        width: 100vw;
+        max-height: 100vh;
+    }
+    .trash-card {
+        padding: 12px;
+    }
+}
+.login-input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.login-input-group input {
+    flex: 1;
+    padding-right: 40px;  /* 为右侧图标留出空间 */
+}
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    font-size: 1.3rem;
+    color: #8f9bb3;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.toggle-password:active {
+    color: #1e293b;
 }
