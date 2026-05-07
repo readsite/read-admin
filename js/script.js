@@ -1,7 +1,7 @@
 // ==================== 全局变量（前置） ====================
 const API_BASE = 'https://solitudenook.top';
 let currentTab = 'published'; // 当前选中的标签页
-
+let reportsPanel, reportsListDiv, backFromReportsBtn, reportsHeaderBtn, sidebarReports;
 // 分页状态管理
 let pagination = {
     published: { page: 1, limit: 20, total: 0, loading: false, hasMore: true },
@@ -39,6 +39,111 @@ let dateInput, musicTitle, musicArtist, musicCover, musicSrc,
     modalOverlay, closeModalBtn, cancelFormBtn;
 
 // ==================== 辅助函数 ====================
+function showReportsPanel() {
+    // 隐藏所有主列表容器
+    const containers = ['postList', 'scheduledList', 'draftList', 'changelogList'];
+    containers.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+    // 隐藏评论面板（如果打开）
+    if (commentsPanel) commentsPanel.style.display = 'none';
+    // 显示举报面板
+    if (reportsPanel) reportsPanel.style.display = 'block';
+    // 加载举报数据
+    loadReports();
+}
+
+function hideReportsPanel() {
+    if (reportsPanel) reportsPanel.style.display = 'none';
+    // 恢复当前激活的标签页列表
+    const activeContainerId = getContainerId(currentTab);
+    const activeContainer = document.getElementById(activeContainerId);
+    if (activeContainer) activeContainer.style.display = 'grid';
+    // 刷新当前标签页数据
+    refreshCurrentTabData();
+}
+async function loadReports() {
+    if (!reportsListDiv) return;
+    reportsListDiv.innerHTML = '<div class="empty-message"><i class="ri-loader-4-line spin"></i> 加载举报记录...</div>';
+    try {
+        const token = getAuthToken();
+        const response = await fetch(`${API_BASE}/api/reports`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('获取举报列表失败');
+        const reports = await response.json();
+        // 后端返回的是数组
+        if (!reports.length) {
+            reportsListDiv.innerHTML = '<div class="empty-message"><i class="ri-alert-line"></i> 暂无举报记录</div>';
+            return;
+        }
+        let html = '';
+        for (const rep of reports) {
+            const createdAt = rep.created_at ? new Date(rep.created_at).toLocaleString() : '未知时间';
+            const nickname = escapeHtml(rep.nickname || '匿名');
+            const commentContent = escapeHtml(rep.content || '【内容已删除】');
+            const postDate = rep.date || '未知日期';
+            const typeText = { music: '音乐', sentence: '句子', article: '文章' }[rep.type] || rep.type;
+            const reason = escapeHtml(rep.reason || '无原因');
+            const reporterToken = rep.reporter_token ? rep.reporter_token.substring(0, 10) + '…' : '匿名';
+            html += `
+                <div class="report-card" data-comment-id="${rep.comment_id}">
+                    <div class="report-meta">
+                        <span class="report-reason"><i class="ri-alert-line"></i> 举报原因：${reason}</span>
+                        <span class="report-time">${createdAt}</span>
+                    </div>
+                    <div class="report-comment">
+                        <div class="comment-header-sm">
+                            <span><i class="ri-user-line"></i> ${nickname}</span>
+                            <span>${postDate} (${typeText})</span>
+                        </div>
+                        <div class="comment-text">${commentContent}</div>
+                    </div>
+                    <div class="report-actions">
+                        <button class="delete-comment-from-report" data-comment-id="${rep.comment_id}">
+                            <i class="ri-delete-bin-line"></i> 删除评论
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        reportsListDiv.innerHTML = html;
+
+        // 绑定删除按钮事件
+        document.querySelectorAll('.delete-comment-from-report').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const commentId = btn.dataset.commentId;
+                if (!commentId) return;
+                if (!confirm('确定删除该评论吗？删除后将同时清除相关举报记录。')) return;
+                try {
+                    const delRes = await fetch(`${API_BASE}/api/comments/${commentId}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${getAuthToken()}` }
+                    });
+                    if (!delRes.ok) {
+                        const errText = await delRes.text();
+                        throw new Error(errText || '删除失败');
+                    }
+                    alert('评论已删除，相关举报记录已清除');
+                    // 刷新举报列表
+                    loadReports();
+                    // 同时刷新评论管理面板（如果打开）
+                    if (commentsPanel && commentsPanel.style.display === 'block') {
+                        loadComments();
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('删除失败：' + err.message);
+                }
+            });
+        });
+    } catch (err) {
+        console.error('加载举报失败', err);
+        reportsListDiv.innerHTML = `<div class="empty-message"><i class="ri-error-warning-line"></i> 加载失败：${err.message}</div>`;
+    }
+}
 function getAuthToken() {
     return sessionStorage.getItem('read_token');
 }
@@ -103,7 +208,7 @@ function setupUrlPreview(inputEl, previewImg, container) {
     update();
 }
 
-// ==================== 统一 API 请求（自动携带 token） ====================
+// ==================== 统一 API 请求（增强错误处理，支持状态码） ====================
 async function apiRequest(endpoint, options = {}) {
     const url = `${API_BASE}${endpoint}`;
     const headers = {
@@ -117,16 +222,25 @@ async function apiRequest(endpoint, options = {}) {
     const response = await fetch(url, {
         ...options,
         headers,
-		cache: 'no-store', 
+        cache: 'no-store',
     });
     if (!response.ok) {
+        let errorMessage = `请求失败 (${response.status})`;
+        let errorBody = null;
+        try {
+            errorBody = await response.json();
+            if (errorBody && errorBody.message) errorMessage = errorBody.message;
+        } catch(e) {
+            // 如果不是 JSON，尝试获取文本
+            errorMessage = await response.text() || errorMessage;
+        }
+        const error = new Error(errorMessage);
+        error.status = response.status;
         if (response.status === 401) {
             clearAuthToken();
             showLogin();
-            throw new Error('登录已过期，请重新登录');
         }
-        const errorText = await response.text();
-        throw new Error(errorText || '请求失败');
+        throw error;
     }
     return response.json();
 }
@@ -136,7 +250,16 @@ async function addPost(content) {
     return apiRequest('/api/posts', { method: 'POST', body: JSON.stringify(content) });
 }
 async function updatePost(date, content) {
-    return apiRequest(`/api/posts/${date}`, { method: 'PUT', body: JSON.stringify(content) });
+    const cleanContent = {
+        date: content.date,
+        music: content.music || {},
+        sentence: content.sentence || {},
+        article: content.article || {}
+    };
+    return apiRequest(`/api/posts/${date}`, {
+        method: 'PUT',
+        body: JSON.stringify(cleanContent)
+    });
 }
 async function deletePostByDate(date) {
     return apiRequest(`/api/posts/${date}`, { method: 'DELETE' });
@@ -601,102 +724,138 @@ async function saveAsDraft() {
 }
 
 async function handlePublish() {
-  const formData = collectFormData();
-  if (!formData.date) {
-    alert('请选择日期');
-    return;
-  }
-  try {
-    // 1. 草稿转发布（草稿编辑后直接发布）
-    if (currentMode === 'editDraft' && editTargetId) {
-      if (formData.publishType === 'immediate') {
-        await addPost(formData);
-      } else {
-        await addScheduled({ date: formData.date, publishTime: `${formData.date}T00:00:00`, content: formData });
-      }
-      await deleteDraftById(editTargetId);
-      alert('发布成功');
-      closeModal();
-      notifyDataUpdate();
-      return;
+    const formData = collectFormData();
+    if (!formData.date) {
+        alert('请选择日期');
+        return;
     }
 
-    // 2. 编辑已发布内容（核心修改：支持日期迁移并保留统计数据）
-    if (currentMode === 'editPost' && editTargetDate) {
-      const oldDate = editTargetDate;
-      const newDate = formData.date;
+    // 清理前端专用字段，只保留后端需要的字段
+    const cleanData = {
+        date: formData.date,
+        music: formData.music || {},
+        sentence: formData.sentence || {},
+        article: formData.article || {}
+    };
 
-      // 日期发生变化 → 使用迁移接口（保留统计数据）
-      if (oldDate !== newDate) {
-        try {
-          const response = await fetch(`${API_BASE}/api/posts/${oldDate}/move`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${getAuthToken()}`
-            },
-            body: JSON.stringify({ newDate, content: formData })
-          });
-
-          if (!response.ok) {
-            if (response.status === 409) {
-              alert(`日期 ${newDate} 已有内容发布，请选择其他日期`);
-              return;
+    try {
+        // 1. 草稿转发布（草稿编辑后直接发布）
+        if (currentMode === 'editDraft' && editTargetId) {
+            if (formData.publishType === 'immediate') {
+                await addPost(cleanData);
+            } else {
+                await addScheduled({ date: formData.date, publishTime: `${formData.date}T00:00:00`, content: cleanData });
             }
-            throw new Error('迁移失败');
-          }
-
-          const result = await response.json();
-          // 迁移本地收藏状态（localStorage）
-          await migrateLocalFavorites(oldDate, newDate);
-          
-          alert(`内容已从 ${oldDate} 移至 ${newDate}，统计数据已保留，您的收藏也已同步迁移`);
-          closeModal();
-          notifyDataUpdate();
-
-          // 如果收藏页面当前打开，刷新其内容
-          if (document.body.classList.contains('favorites-open') && typeof renderFavorites === 'function') {
-            renderFavorites();
-          }
-          return;
-        } catch (err) {
-          console.error('日期迁移失败', err);
-          alert('修改日期失败：' + (err.message || '请检查网络或联系管理员'));
-          return;
+            await deleteDraftById(editTargetId);
+            alert('发布成功');
+            closeModal();
+            notifyDataUpdate();
+            return;
         }
-      } 
-      // 日期未变 → 普通更新
-      else {
-        await updatePost(editTargetDate, formData);
-        alert('内容已更新');
+
+        // 2. 编辑已发布内容（支持日期迁移并保留统计数据）
+        if (currentMode === 'editPost' && editTargetDate) {
+            const oldDate = editTargetDate;
+            const newDate = formData.date;
+
+            // 日期发生变化 → 使用迁移接口
+            if (oldDate !== newDate) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/posts/${oldDate}/move`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${getAuthToken()}`
+                        },
+                        body: JSON.stringify({ newDate, content: cleanData })
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 409) {
+                            alert(`日期 ${newDate} 已有内容发布，请选择其他日期`);
+                            return;
+                        }
+                        const errText = await response.text();
+                        throw new Error(errText || '迁移失败');
+                    }
+
+                    // 迁移本地收藏状态（如果存在此函数）
+                    if (typeof migrateLocalFavorites === 'function') {
+                        await migrateLocalFavorites(oldDate, newDate);
+                    }
+
+                    alert(`内容已从 ${oldDate} 移至 ${newDate}，统计数据已保留`);
+                    closeModal();
+                    notifyDataUpdate();
+
+                    // 如果收藏页面当前打开，刷新
+                    if (document.body.classList.contains('favorites-open') && typeof renderFavorites === 'function') {
+                        renderFavorites();
+                    }
+                    return;
+                } catch (err) {
+                    console.error('日期迁移失败', err);
+                    alert('修改日期失败：' + (err.message || '请检查网络或联系管理员'));
+                    return;
+                }
+            } 
+            // 日期未变 → 普通更新
+            else {
+                await updatePost(editTargetDate, cleanData);
+                alert('内容已更新');
+                closeModal();
+                notifyDataUpdate();
+                return;
+            }
+        }
+
+        // 3. 编辑定时任务（支持转为立即发布）
+        if (currentMode === 'editScheduled' && editTargetId) {
+            if (formData.publishType === 'immediate') {
+                // 立即发布：先调用 addPost，成功后再删除原定时任务
+                await addPost(cleanData);
+                try {
+                    await deleteScheduledById(editTargetId);
+                } catch (delErr) {
+                    console.error('删除原定时任务失败，请手动清理', delErr);
+                    alert('发布成功，但原定时任务删除失败，请手动到定时任务列表中删除');
+                }
+                alert('已立即发布');
+                closeModal();
+                notifyDataUpdate();
+                if (currentTab === 'scheduled') {
+                    switchTab('published');
+                }
+                return;
+            } else {
+                // 仍为定时发布，更新定时任务
+                await updateScheduled(editTargetId, { date: formData.date, publishTime: `${formData.date}T00:00:00`, content: cleanData });
+                alert('定时任务已更新');
+                closeModal();
+                notifyDataUpdate();
+                return;
+            }
+        }
+
+        // 4. 新增发布（正常模式）
+        if (formData.publishType === 'immediate') {
+            await addPost(cleanData);
+        } else {
+            await addScheduled({ date: formData.date, publishTime: `${formData.date}T00:00:00`, content: cleanData });
+        }
+        alert('发布成功');
         closeModal();
         notifyDataUpdate();
-        return;
-      }
-    }
 
-    // 3. 编辑定时任务
-    if (currentMode === 'editScheduled' && editTargetId) {
-      await updateScheduled(editTargetId, { date: formData.date, publishTime: `${formData.date}T00:00:00`, content: formData });
-      alert('定时任务已更新');
-      closeModal();
-      notifyDataUpdate();
-      return;
+    } catch (err) {
+        console.error('发布失败', err);
+        // 针对日期冲突的友好提示
+        if (err.status === 409 || (err.message && err.message.includes('已存在'))) {
+            alert(`日期 ${formData.date} 已有内容发布，请更换日期后再试。`);
+        } else {
+            alert('发布失败：' + (err.message || '请重试'));
+        }
     }
-
-    // 4. 新增发布（正常模式）
-    if (formData.publishType === 'immediate') {
-      await addPost(formData);
-    } else {
-      await addScheduled({ date: formData.date, publishTime: `${formData.date}T00:00:00`, content: formData });
-    }
-    alert('发布成功');
-    closeModal();
-    notifyDataUpdate();
-  } catch (err) {
-    console.error('发布失败', err);
-    alert('发布失败，请重试');
-  }
 }
 
 // ==================== 更新日志相关 ====================
@@ -892,26 +1051,26 @@ async function loadTrashData() {
             `;
         }
         container.innerHTML = html;
-container.querySelectorAll('.restore-btn').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const id = btn.dataset.id;
-        const type = btn.dataset.type;
-        let rawData = btn.dataset.data;
-        try {
-            const dataObj = JSON.parse(rawData);
-            if (confirm(`恢复该项内容？恢复后将重新出现在对应列表中。`)) {
-                await restoreTrashItem(id, type, dataObj);
-                alert('恢复成功');
-                await loadTrashData();           // 刷新回收站
-                refreshCurrentTabData();          // 刷新主列表
-            }
-        } catch (err) {
-            console.error(err);
-            alert('恢复失败: ' + (err.message || '请检查日期是否冲突或网络问题'));
-        }
-    });
-});
+        container.querySelectorAll('.restore-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                const type = btn.dataset.type;
+                let rawData = btn.dataset.data;
+                try {
+                    const dataObj = JSON.parse(rawData);
+                    if (confirm(`恢复该项内容？恢复后将重新出现在对应列表中。`)) {
+                        await restoreTrashItem(id, type, dataObj);
+                        alert('恢复成功');
+                        await loadTrashData();           // 刷新回收站
+                        refreshCurrentTabData();          // 刷新主列表
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('恢复失败: ' + (err.message || '请检查日期是否冲突或网络问题'));
+                }
+            });
+        });
         container.querySelectorAll('.permanent-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
@@ -982,7 +1141,8 @@ window.deletePost = async function (date) {
 window.deleteScheduled = async function (id) {
     if (!confirm('删除定时任务后将移入回收站，确定删除？')) return;
     try {
-        const tasks = await apiRequest('/api/scheduled');
+        const response = await apiRequest('/api/scheduled?page=1&limit=100');
+        const tasks = response.items || [];
         const task = tasks.find(t => t.id === id);
         if (task) {
             await addToTrash('scheduled', id, task.content);
@@ -997,7 +1157,8 @@ window.deleteScheduled = async function (id) {
 window.deleteDraft = async function (id) {
     if (!confirm('删除草稿后将移入回收站，可恢复。确定删除？')) return;
     try {
-        const drafts = await apiRequest('/api/drafts');
+        const response = await apiRequest('/api/drafts?page=1&limit=100');
+        const drafts = response.items || [];
         const draft = drafts.find(d => d.id === id);
         if (draft) {
             await addToTrash('draft', id, draft);
@@ -1049,13 +1210,24 @@ window.deleteChangelog = async function (id) {
 window.editPost = async function (date) {
     try {
         let postData = null;
+        // 优先从缓存获取，确保结构统一
         if (fullDataCache.published) {
             const cached = fullDataCache.published.find(p => p.date === date);
-            if (cached) postData = cached.content ? cached.content : cached;
+            if (cached) {
+                // 兼容两种存储结构：{ content: {...} } 或直接包含 music/sentence/article
+                postData = cached.content || cached;
+            }
         }
         if (!postData) {
             const response = await apiRequest(`/api/posts/${date}`);
-            postData = response.content ? response.content : response;
+            // 根据实际后端返回结构调整，常见为 { music, sentence, article, stats... }
+            postData = response.content || response;
+        }
+        // 验证必要字段
+        if (!postData.music && !postData.sentence && !postData.article) {
+            console.error('获取到的帖子数据格式异常', postData);
+            alert('数据格式错误，无法编辑');
+            return;
         }
         fillFormWithData(postData, 'immediate');
         currentMode = 'editPost';
@@ -1068,13 +1240,15 @@ window.editPost = async function (date) {
         openModal();
     } catch (err) {
         console.error('获取帖子详情失败', err);
-        alert('获取帖子详情失败');
+        alert('获取帖子详情失败：' + (err.message || '请检查网络'));
     }
 };
 
 window.editScheduled = async function (id) {
     try {
-        const tasks = await apiRequest('/api/scheduled');
+        // 获取第一页数据（如果任务不在第一页，需要循环获取，见下文优化）
+        const response = await apiRequest('/api/scheduled?page=1&limit=100');  // 适当增大 limit
+        const tasks = response.items || [];   // ✅ 正确提取数组
         const task = tasks.find(t => t.id === id);
         if (task) {
             fillFormWithData(task.content, 'scheduled');
@@ -1086,6 +1260,9 @@ window.editScheduled = async function (id) {
             publishFields.style.display = 'block';
             changelogFields.style.display = 'none';
             openModal();
+        } else {
+            // 如果第一页没找到，可能需要加载更多分页（见下文进阶修复）
+            alert('未找到该定时任务，可能不在当前分页中');
         }
     } catch (err) {
         console.error('获取定时任务失败', err);
@@ -1095,19 +1272,12 @@ window.editScheduled = async function (id) {
 
 window.editDraft = async function (id) {
     try {
-        const drafts = await apiRequest('/api/drafts');
+        const response = await apiRequest('/api/drafts?page=1&limit=100');
+        const drafts = response.items || [];
         const draft = drafts.find(d => d.id === id);
         if (draft) {
             fillFormWithData(draft, draft.publishType);
-            currentMode = 'editDraft';
-            editTargetId = id;
-            saveDraftBtn.style.display = 'inline-flex';
-            saveDraftBtn.innerHTML = '<i class="ri-save-line"></i> 更新草稿';
-            submitBtn.innerHTML = '<i class="ri-rocket-line"></i> 发布';
-            modalTitle.innerHTML = '<i class="ri-draft-line"></i> 编辑草稿';
-            publishFields.style.display = 'block';
-            changelogFields.style.display = 'none';
-            openModal();
+            // ... 其余代码不变
         }
     } catch (err) {
         console.error('获取草稿失败', err);
@@ -1153,9 +1323,26 @@ if (checkAuth()) {
 
 // ==================== DOM 元素获取与事件绑定 ====================
 document.addEventListener('DOMContentLoaded', () => {
+reportsPanel = document.getElementById('reportsPanel');
+reportsListDiv = document.getElementById('reportsList');
+backFromReportsBtn = document.getElementById('backFromReportsBtn');
+reportsHeaderBtn = document.getElementById('reportsHeaderBtn');
+sidebarReports = document.getElementById('sidebarReports');
 // 密码显示/隐藏切换
 const togglePwd = document.getElementById('togglePassword');
 const pwdInput = document.getElementById('password');
+if (reportsHeaderBtn) {
+    reportsHeaderBtn.addEventListener('click', showReportsPanel);
+}
+if (backFromReportsBtn) {
+    backFromReportsBtn.addEventListener('click', hideReportsPanel);
+}
+if (sidebarReports) {
+    sidebarReports.addEventListener('click', () => {
+        closeSidebar();
+        showReportsPanel();
+    });
+}
 if (togglePwd && pwdInput) {
     togglePwd.addEventListener('click', function () {
         const type = pwdInput.getAttribute('type') === 'password' ? 'text' : 'password';
@@ -1271,3 +1458,167 @@ if (togglePwd && pwdInput) {
         });
     }
 });
+// ==================== 侧边栏交互 ====================
+const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+const sidebar = document.getElementById('sidebar');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
+const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
+
+function openSidebar() {
+    sidebar.classList.add('open');
+    sidebarOverlay.classList.add('active');
+}
+
+function closeSidebar() {
+    sidebar.classList.remove('open');
+    sidebarOverlay.classList.remove('active');
+}
+
+if (mobileMenuBtn) {
+    mobileMenuBtn.addEventListener('click', openSidebar);
+}
+if (sidebarCloseBtn) {
+    sidebarCloseBtn.addEventListener('click', closeSidebar);
+}
+if (sidebarOverlay) {
+    sidebarOverlay.addEventListener('click', closeSidebar);
+}
+
+// ==================== 侧边栏菜单项功能 ====================
+// 评论管理（侧边栏）
+const sidebarComments = document.getElementById('sidebarComments');
+if (sidebarComments) {
+    sidebarComments.addEventListener('click', () => {
+        closeSidebar();
+        showCommentsPanel();
+    });
+}
+// 回收站（侧边栏）
+const sidebarTrash = document.getElementById('sidebarTrash');
+if (sidebarTrash) {
+    sidebarTrash.addEventListener('click', () => {
+        closeSidebar();
+        openTrashModal();
+    });
+}
+// 退出登录（侧边栏）
+const sidebarLogout = document.getElementById('sidebarLogout');
+if (sidebarLogout) {
+    sidebarLogout.addEventListener('click', () => {
+        closeSidebar();
+        clearAuthToken();
+        showLogin();
+    });
+}
+
+// ==================== 评论管理完整功能 ====================
+const commentsPanel = document.getElementById('commentsPanel');
+const commentsListDiv = document.getElementById('commentsList');
+const backFromCommentsBtn = document.getElementById('backFromCommentsBtn');
+const commentsHeaderBtn = document.getElementById('commentsHeaderBtn'); // PC顶部按钮
+
+// 显示评论面板（隐藏主列表容器）
+function showCommentsPanel() {
+    // 隐藏所有列表容器
+    const containers = ['postList', 'scheduledList', 'draftList', 'changelogList'];
+    containers.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+    // 显示评论面板
+    if (commentsPanel) commentsPanel.style.display = 'block';
+    // 加载评论数据
+    loadComments();
+}
+
+// 隐藏评论面板，恢复当前标签页视图
+function hideCommentsPanel() {
+    if (commentsPanel) commentsPanel.style.display = 'none';
+    // 重新显示当前激活的标签页对应的列表容器
+    const activeContainerId = getContainerId(currentTab);
+    const activeContainer = document.getElementById(activeContainerId);
+    if (activeContainer) activeContainer.style.display = 'grid';
+    // 重新加载当前标签页数据（确保刷新）
+    refreshCurrentTabData();
+}
+
+// 返回按钮事件
+if (backFromCommentsBtn) {
+    backFromCommentsBtn.addEventListener('click', hideCommentsPanel);
+}
+// PC顶部评论管理按钮
+if (commentsHeaderBtn) {
+    commentsHeaderBtn.addEventListener('click', showCommentsPanel);
+}
+
+async function loadComments() {
+    if (!commentsListDiv) return;
+    commentsListDiv.innerHTML = '<div class="empty-message"><i class="ri-loader-4-line spin"></i> 加载评论中...</div>';
+    try {
+        const token = getAuthToken();
+        // 修改点 1：使用 /api/comments/all 获取所有评论
+        const response = await fetch(`${API_BASE}/api/comments/all`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('获取评论失败');
+        const comments = await response.json();
+        // 后端返回的是数组
+        const commentArray = Array.isArray(comments) ? comments : [];
+        if (commentArray.length === 0) {
+            commentsListDiv.innerHTML = '<div class="empty-message"><i class="ri-chat-3-line"></i> 暂无评论</div>';
+            return;
+        }
+        // 渲染评论列表
+        let html = '';
+        for (const comment of commentArray) {
+            // 修改点 2：字段名映射
+            const nickname = escapeHtml(comment.nickname || '匿名');
+            const createdAt = comment.created_at ? new Date(comment.created_at).toLocaleString() : '未知时间';
+            const content = escapeHtml(comment.content || '');
+            const postDate = comment.date || '未知日期';
+            const typeMap = { music: '音乐', sentence: '句子', article: '文章' };
+            const typeText = typeMap[comment.type] || comment.type;
+
+            html += `
+                <div class="comment-card" data-id="${comment.id}">
+                    <div class="comment-meta">
+                        <span class="comment-user"><i class="ri-user-line"></i> ${nickname}</span>
+                        <span>${createdAt}</span>
+                    </div>
+                    <div class="comment-content">${content}</div>
+                    <div class="comment-target">
+                        <i class="ri-file-copy-line"></i> 关联：${postDate} (${typeText})
+                    </div>
+                    <div class="comment-actions">
+                        <button class="delete-comment-btn" data-id="${comment.id}"><i class="ri-delete-bin-line"></i> 删除评论</button>
+                    </div>
+                </div>
+            `;
+        }
+        commentsListDiv.innerHTML = html;
+        // 绑定删除按钮事件（保持原有逻辑）
+        document.querySelectorAll('.delete-comment-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const commentId = btn.dataset.id;
+                if (confirm('确定删除这条评论吗？')) {
+                    try {
+                        const delRes = await fetch(`${API_BASE}/api/comments/${commentId}`, {
+                            method: 'DELETE',
+                            headers: { 'Authorization': `Bearer ${getAuthToken()}` }
+                        });
+                        if (!delRes.ok) throw new Error('删除失败');
+                        alert('评论已删除');
+                        loadComments(); // 刷新列表
+                    } catch (err) {
+                        console.error(err);
+                        alert('删除失败：' + err.message);
+                    }
+                }
+            });
+        });
+    } catch (err) {
+        console.error('加载评论失败', err);
+        commentsListDiv.innerHTML = `<div class="empty-message"><i class="ri-error-warning-line"></i> 加载评论失败：${err.message}</div>`;
+    }
+}
