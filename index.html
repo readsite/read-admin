@@ -10,6 +10,86 @@
     <title>Read.管理后台 | 内容发布中心</title>
     <link href="font/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* 确保回收站面板与评论面板样式统一 */
+        .trash-panel .trash-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .trash-panel .trash-card {
+            background: white;
+            border-radius: 20px;
+            padding: 18px;
+            border: 1px solid #eef2f6;
+            transition: 0.2s;
+        }
+        .trash-panel .trash-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .trash-panel .trash-type-badge {
+            background: #eef2ff;
+            padding: 4px 14px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #1e293b;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .trash-panel .trash-preview {
+            font-size: 0.85rem;
+            color: #334155;
+            margin: 12px 0;
+            background: #f8fafc;
+            padding: 10px 14px;
+            border-radius: 16px;
+            word-break: break-word;
+        }
+        .trash-panel .trash-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .trash-panel .trash-actions button {
+            background: white;
+            border: 1px solid #e2e8f0;
+            padding: 6px 18px;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: 0.2s;
+        }
+        .trash-panel .trash-actions button.restore-btn {
+            background: #eef2ff;
+            color: #2563eb;
+            border-color: #cbd5e1;
+        }
+        .trash-panel .trash-actions button.permanent-btn {
+            background: #fff1f0;
+            color: #e11d48;
+            border-color: #ffe4e2;
+        }
+        .trash-panel .empty-message {
+            text-align: center;
+            padding: 56px 20px;
+            background: #ffffffcc;
+            border-radius: 8px;
+            color: #6c7a91;
+            font-weight: 500;
+        }
+    </style>
 </head>
 <body>
 
@@ -37,14 +117,12 @@
 <div id="appContainer" class="app-container" style="display: none;">
     <div class="container">
         <div class="header">
-            <!-- 移动端菜单按钮 -->
             <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="ri-menu-line"></i></button>
-            <h1>Read.管理后台</h1>
+            <h1 id="mainHeaderTitle">已发布内容</h1>
             <div class="header-buttons">
                 <button class="btn" id="newPostBtn"><i class="ri-add-line"></i> 新建发布</button>
-                <button class="btn" id="newChangelogBtn" style="background:#6c5ce7;"><i class="ri-history-line"></i> 新增日志</button>
                 <button class="btn" id="trashBinBtn" style="background:#475569;"><i class="ri-delete-bin-7-line"></i> 回收站</button>
-               <button class="btn" id="reportsHeaderBtn" style="background:#ef4444;"><i class="ri-alert-line"></i> 举报管理</button>
+                <button class="btn" id="reportsHeaderBtn" style="background:#ef4444;"><i class="ri-alert-line"></i> 举报管理</button>
                 <button class="btn" id="commentsHeaderBtn" style="background:#10b981;"><i class="ri-chat-3-line"></i> 评论管理</button>
                 <button class="btn logout-btn" id="logoutBtn"><i class="ri-logout-box-line"></i> 退出</button>
             </div>
@@ -55,44 +133,45 @@
             <button id="tabPublished" class="active"><i class="ri-checkbox-circle-line"></i> 已发布</button>
             <button id="tabScheduled"><i class="ri-time-line"></i> 定时任务</button>
             <button id="tabDraft"><i class="ri-draft-line"></i> 草稿</button>
-            <button id="tabChangelog"><i class="ri-history-line"></i> 更新日志</button>
         </div>
 
-        <!-- 列表容器 -->
+        <!-- 已发布列表容器 -->
         <div id="postList" class="post-list"></div>
         <div id="scheduledList" class="post-list" style="display: none;"></div>
         <div id="draftList" class="post-list" style="display: none;"></div>
-        <div id="changelogList" class="post-list" style="display: none;"></div>
         
         <!-- 评论管理面板 -->
         <div id="commentsPanel" class="comments-panel" style="display: none;">
-            <div class="comments-header">
-                <button class="back-to-main-btn" id="backFromCommentsBtn"><i class="ri-arrow-left-line"></i> 返回</button>
-                <h3><i class="ri-chat-3-line"></i> 评论管理</h3>
-            </div>
             <div id="commentsList" class="comments-list">
+                <div class="empty-message">加载中...</div>
+            </div>
+        </div>
+
+        <!-- 举报管理面板 -->
+        <div id="reportsPanel" class="comments-panel" style="display: none;">
+            <div id="reportsList" class="comments-list">
+                <div class="empty-message">加载中...</div>
+            </div>
+        </div>
+
+        <div id="trashPanel" class="comments-panel trash-panel" style="display: none;">
+            <div class="trash-stats" style="margin-bottom: 20px; display: flex; justify-content: space-between;">
+                <span><i class="ri-information-line"></i> 删除的内容暂存于此，可恢复</span>
+                <span id="trashPanelCount">0 项</span>
+            </div>
+            <div id="trashListPanel" class="trash-list">
                 <div class="empty-message">加载中...</div>
             </div>
         </div>
     </div>
 
-    <!-- 移动端底部导航栏 -->
-    <div class="bottom-nav">
-        <button class="nav-item active" data-tab="published"><i class="ri-rocket-line"></i><span>发布</span></button>
-        <button class="nav-item" data-tab="scheduled"><i class="ri-time-line"></i><span>定时</span></button>
-        <div class="nav-center-btn" id="mobileCenterBtn"><i class="ri-add-line"></i></div>
-        <button class="nav-item" data-tab="draft"><i class="ri-draft-line"></i><span>草稿</span></button>
-        <button class="nav-item" data-tab="changelog"><i class="ri-history-line"></i><span>日志</span></button>
-    </div>
-    <!-- 中央按钮弹出菜单 -->
-    <div class="action-sheet-overlay" id="actionSheetOverlay"></div>
-    <div class="action-sheet" id="actionSheet">
-        <button class="action-sheet-item" id="mobileNewPost"><i class="ri-add-circle-line"></i> 新建发布</button>
-        <button class="action-sheet-item" id="mobileNewChangelog"><i class="ri-history-line"></i> 新增更新日志</button>
+    <!-- 移动端右下角悬浮新增按钮 -->
+    <div class="fab-container" id="mobileFabContainer">
+        <div class="fab-btn" id="mobileFabBtn"><i class="ri-add-line"></i></div>
     </div>
 </div>
 
-<!-- ========= 侧边栏 (移动端专属) ========= -->
+<!-- 侧边栏 (移动端专属) -->
 <div id="sidebarOverlay" class="sidebar-overlay"></div>
 <div id="sidebar" class="sidebar">
     <div class="sidebar-header">
@@ -100,12 +179,21 @@
         <button class="sidebar-close" id="sidebarCloseBtn"><i class="ri-close-line"></i></button>
     </div>
     <div class="sidebar-menu">
+        <div class="sidebar-item" id="sidebarPublished">
+            <i class="ri-rocket-line"></i> 已发布内容
+        </div>
+        <div class="sidebar-item" id="sidebarScheduled">
+            <i class="ri-time-line"></i> 定时任务
+        </div>
+        <div class="sidebar-item" id="sidebarDraft">
+            <i class="ri-draft-line"></i> 草稿箱
+        </div>
         <div class="sidebar-item" id="sidebarComments">
             <i class="ri-chat-3-line"></i> 评论管理
         </div>
         <div class="sidebar-item" id="sidebarReports">
-    <i class="ri-alert-line"></i> 举报管理
-</div>
+            <i class="ri-alert-line"></i> 举报管理
+        </div>
         <div class="sidebar-item" id="sidebarTrash">
             <i class="ri-delete-bin-7-line"></i> 回收站
         </div>
@@ -117,7 +205,7 @@
     </div>
 </div>
 
-<!-- 全屏模态窗 -->
+<!-- 全屏模态窗 (新建/编辑表单) -->
 <div id="modalOverlay" class="modal-overlay">
     <div class="modal-container">
         <div class="modal-header">
@@ -147,11 +235,6 @@
                     <div class="form-group"><label>正文</label><textarea id="articleContent" class="auto-resize-textarea"></textarea></div>
                     <div class="form-group"><label>配图URL</label><input type="url" id="articleImageUrl"><div class="upload-preview" id="imagePreviewContainer" style="display:none"><img id="imagePreview"></div></div>
                 </div>
-                <div id="changelogFields" style="display: none;">
-                    <div class="form-group"><label>版本号</label><input type="text" id="changelogVersion" placeholder="1.0.1"></div>
-                    <div class="form-group"><label>日期</label><input type="date" id="changelogDate"></div>
-                    <div class="form-group"><label>更新内容</label><textarea id="changelogContent" rows="4"></textarea></div>
-                </div>
             </form>
         </div>
         <div class="form-actions">
@@ -162,30 +245,33 @@
     </div>
 </div>
 
-<!-- 回收站模态窗 -->
-<div id="trashModal" class="modal-overlay trash-modal">
-    <div class="modal-container">
-        <div class="modal-header">
-            <h2><i class="ri-delete-bin-7-line"></i> 回收站</h2>
-            <button class="modal-close" id="closeTrashBtn"><i class="ri-close-line"></i></button>
-        </div>
-        <div class="modal-body-scroll">
-            <div class="trash-stats"><span><i class="ri-information-line"></i> 删除的内容暂存于此</span><span id="trashCount">0</span></div>
-            <div id="trashListContainer" class="trash-list"><div class="empty-trash"><i class="ri-recycle-line"></i> 回收站为空</div></div>
-        </div>
-        <div class="form-actions"><button type="button" class="btn cancel" id="closeTrashFooterBtn">关闭</button></div>
-    </div>
-</div>
-<!-- 举报管理面板 -->
-<div id="reportsPanel" class="comments-panel" style="display: none;">
-    <div class="comments-header">
-        <button class="back-to-main-btn" id="backFromReportsBtn"><i class="ri-arrow-left-line"></i> 返回</button>
-        <h3><i class="ri-alert-line"></i> 举报管理</h3>
-    </div>
-    <div id="reportsList" class="comments-list">
-        <div class="empty-message">加载中...</div>
-    </div>
-</div>
 <script src="js/script.js"></script>
+<script>
+    // 内联补充全局函数：侧边栏高亮及标题管理
+    (function() {
+        // 标题映射
+        const headerTitleMap = {
+            published: '已发布内容',
+            scheduled: '定时任务',
+            draft: '草稿箱',
+            comments: '评论管理',
+            reports: '举报管理',
+            trash: '回收站'
+        };
+        window.updateMainHeader = function(moduleKey) {
+            const titleEl = document.getElementById('mainHeaderTitle');
+            if(titleEl && headerTitleMap[moduleKey]) {
+                titleEl.innerText = headerTitleMap[moduleKey];
+            }
+        };
+        // 全局关闭侧边栏
+        window.closeSidebarGlobal = function() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if(sidebar) sidebar.classList.remove('open');
+            if(overlay) overlay.classList.remove('active');
+        };
+    })();
+</script>
 </body>
 </html>
