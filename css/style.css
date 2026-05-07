@@ -3,6 +3,9 @@
     padding: 0;
     box-sizing: border-box;
 }
+html, body, .app-container, .container {
+    height: 100%;
+}
 
 body {
     -webkit-user-select: none;
@@ -63,6 +66,7 @@ body {
     margin-bottom: 18px;
     border: 1px solid #e2e8f0;
     transition: 0.2s;
+    position: relative;
 }
 
 .login-input-group i {
@@ -79,6 +83,19 @@ body {
     font-size: 0.95rem;
     outline: none;
     font-family: inherit;
+    padding-right: 40px;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    font-size: 1.3rem;
+    color: #8f9bb3;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.toggle-password:active {
+    color: #1e293b;
 }
 
 .login-btn {
@@ -104,15 +121,18 @@ body {
     transform: translateY(-2px);
 }
 
-
 .app-container {
+  overflow: hidden;
     padding: 28px 20px;
     min-height: 100vh;
 }
 
 .container {
-    max-width: 1400px;
-    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: auto; 
 }
 
 /* 头部区域 */
@@ -123,6 +143,7 @@ body {
     align-items: center;
     margin-bottom: 32px;
     gap: 16px;
+    min-height: 0; 
 }
 
 .header h1 {
@@ -202,6 +223,7 @@ body {
     padding-bottom: 4px;
     flex-wrap: wrap;
     gap: 8px;
+    min-height: 0; 
 }
 
 .tabs button {
@@ -516,140 +538,37 @@ body {
     border: 1px solid #e2e8f0;
 }
 
-/* ========== 移动端底部导航栏 ========== */
-.bottom-nav {
+/* ========== 移动端右下角悬浮按钮 ========== */
+.fab-container {
     position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background: rgba(255, 255, 255, 0.96);
-    backdrop-filter: blur(10px);
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    padding: 8px 12px;
-    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
-    z-index: 1100;
-    border-top: 1px solid #eef2f6;
+    bottom: 28px;
+    right: 24px;
+    z-index: 1150;
+    display: none; /* 默认隐藏，移动端显示 */
 }
-
-.nav-item {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    background: none;
-    border: none;
-    font-size: 0.7rem;
-    color: #94a3b8;
-    transition: 0.2s;
-    cursor: pointer;
-    padding: 6px 0;
-    border-radius: 30px;
-}
-
-.nav-item i {
-    font-size: 1.5rem;
-}
-
-.nav-item.active {
-    color: #3b82f6;
-    font-weight: 500;
-}
-
-.nav-center-btn {
-    position: relative;
-    top: 0;
-    background: #3b82f6;
+.fab-btn {
     width: 56px;
     height: 56px;
-    border-radius: 32px;
+    border-radius: 50%;
+    background: #3b82f6;
+    color: white;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: 0.2s;
-}
-
-.nav-center-btn i {
     font-size: 28px;
-    color: white;
-}
-
-.nav-center-btn:active {
-    transform: scale(0.94);
-}
-
-/* 中央按钮弹出菜单 (Action Sheet) */
-.action-sheet {
-    position: fixed;
-    bottom: 80px;
-    left: 20px;
-    right: 20px;
-    border-radius: 8px;
-    background: white;
-    z-index: 1150;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(20px);
-    transition: all 0.2s ease;
-}
-
-.action-sheet.active {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-}
-
-.action-sheet-item {
-    padding: 20px;
-    font-size: 1rem;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    background: white;
-    border: none;
-    width: 100%;
-    text-align: left;
+    box-shadow: 0 6px 18px rgba(59,130,246,0.35);
     cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
-.action-sheet-item:active {
-    background: rgba(0, 0, 0, 0.02);
+.fab-btn:active {
+    transform: scale(0.92);
 }
-.action-sheet-item:last-child {
-    border-bottom: none;
-}
-
-.action-sheet-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.2);
-    z-index: 1140;
-    opacity: 0;
-    visibility: hidden;
-    transition: 0.2s;
-}
-
-.action-sheet-overlay.active {
-    opacity: 1;
-    visibility: visible;
-}
-
 /* 分页加载更多按钮 */
 .pagination-more {
     grid-column: 1 / -1;
     text-align: center;
     margin-top: 20px;
 }
-
 .load-more-btn {
     background: #ffffff;
     border: 1px solid #e2e8f0;
@@ -663,239 +582,10 @@ body {
     gap: 6px;
     transition: 0.2s;
 }
-
 .load-more-btn:active {
     background: #f1f5f9;
 }
 
-/* ========== 移动端响应式样式 ========== */
-@media (max-width: 768px) {
-    .header {
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
-    .header h1 {
-        font-size: 1.2rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 55%;
-    }
-    .header-buttons {
-        display: flex;
-        gap: 8px;
-        flex-shrink: 0;
-    }
-    /* 移动端只显示回收站和退出按钮，新建发布和新增日志通过中央菜单访问 */
-    .header-buttons .btn:not(.logout-btn):not(#trashBinBtn) {
-        display: none;
-    }
-    .header-buttons .btn {
-        font-size: 0.75rem;
-        padding: 6px 12px;
-        white-space: nowrap;
-    }
-    .app-container {
-        padding: 16px 12px 90px 12px;
-    }
-    /* 隐藏PC顶部tabs */
-    .tabs {
-        display: none;
-    }
-    /* 卡片两列布局 */
-    .post-list {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-    }
-    .post-card {
-        padding: 12px 14px;
-    }
-    .post-card-header h3 {
-        font-size: 0.8rem;
-        padding: 2px 10px;
-    }
-    .stat-item {
-        font-size: 0.6rem;
-        padding: 2px 8px;
-    }
-    .task-meta {
-        font-size: 0.65rem;
-        gap: 6px;
-    }
-    .post-actions button {
-        padding: 4px 12px;
-        font-size: 0.7rem;
-    }
-    .modal-body-scroll {
-        padding: 20px 20px 12px 20px;
-    }
-    .form-actions {
-        padding: 10px;
-    }
-    .type-selector {
-        gap: 16px;
-        padding: 10px 16px;
-    }
-    .section-title {
-        margin-top: 20px;
-    }
-}
-
-/* 回收站模态窗额外样式 */
-.modal-overlay.trash-modal {
-    align-items: center;
-    justify-content: center;
-}
-.modal-overlay.trash-modal .modal-container {
-    width: 100vw;
-    height: 100vh;
-    max-width: 100%;
-    max-height: 100%;
-    border-radius: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-}
-.modal-overlay.trash-modal .modal-body-scroll {
-    flex: 1;
-    overflow-y: auto;
-}
-.trash-modal .modal-container {
-    max-width: 1400px;
-    max-height: 100vh;
-    border-radius: 28px;
-    width: 100vw;
-    height: auto;
-}
-.trash-stats {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-    padding: 0 4px;
-    color: #5b6e8c;
-    font-size: 0.85rem;
-}
-.trash-list {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    max-height: 55vh;
-    overflow-y: auto;
-    padding-right: 4px;
-}
-.trash-card {
-    background: #f8fafc;
-    border-radius: 20px;
-    padding: 16px;
-    border: 1px solid #eef2f6;
-    transition: 0.2s;
-}
-.trash-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-.trash-type-badge {
-    background: #e2e8f0;
-    padding: 4px 12px;
-    border-radius: 30px;
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: #1e293b;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-.trash-original-id {
-    font-size: 0.7rem;
-    color: #6c7a91;
-    font-family: monospace;
-}
-.trash-preview {
-    font-size: 0.85rem;
-    color: #334155;
-    margin: 8px 0;
-    background: white;
-    padding: 8px 12px;
-    border-radius: 16px;
-    word-break: break-word;
-}
-.trash-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-top: 12px;
-}
-.trash-actions button {
-    background: white;
-    border: 1px solid #e2e8f0;
-    padding: 6px 16px;
-    border-radius: 30px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    transition: 0.2s;
-}
-.trash-actions button.restore-btn {
-    background: #eef2ff;
-    color: #2563eb;
-    border-color: #cbd5e1;
-}
-.trash-actions button.permanent-btn {
-    background: #fff1f0;
-    color: #e11d48;
-    border-color: #ffe4e2;
-}
-.empty-trash {
-    text-align: center;
-    padding: 48px 20px;
-    color: #94a3b8;
-}
-@media (min-width: 768px) {
-    .bottom-nav,
-    .action-sheet,
-    .action-sheet-overlay {
-        display: none !important;
-    }
-    .trash-modal .modal-container {
-        width: 100vw;
-        max-height: 100vh;
-    }
-    .trash-card {
-        padding: 12px;
-    }
-}
-.login-input-group {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-.login-input-group input {
-    flex: 1;
-    padding-right: 40px;  /* 为右侧图标留出空间 */
-}
-.toggle-password {
-    position: absolute;
-    right: 12px;
-    font-size: 1.3rem;
-    color: #8f9bb3;
-    cursor: pointer;
-    transition: color 0.2s;
-}
-.toggle-password:active {
-    color: #1e293b;
-}
 /* ========== 移动端侧边栏 ========== */
 .mobile-menu-btn {
     display: none;
@@ -982,52 +672,37 @@ body {
 .sidebar-item:active {
     background: #f1f5f9;
 }
+.sidebar-item.active {
+    background: #eef2ff;
+    font-weight: 600;
+    border-left: 3px solid #3b82f6;
+    color: #1e293b;
+}
 .sidebar-footer {
     border-top: 1px solid #eef2f6;
     padding: 16px 0;
 }
-@media (max-width: 768px) {
-    .mobile-menu-btn {
-        display: flex;
-    }
-    .header-buttons .btn:not(#newPostBtn):not(#newChangelogBtn) {
-        display: none;
-    }
-    .header h1 {
-        margin-left: 0;
-        flex: 1;
-    }
-}
-/* 评论管理面板样式 */
+
+/* 评论管理、举报管理、回收站面板统一样式 */
 .comments-panel {
-    background: #f8fafc;
-    border-radius: 24px;
-    margin-top: 16px;
-    padding: 16px;
-}
-.comments-header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 20px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #e2e8f0;
-}
-.back-to-main-btn {
-    background: #eef2ff;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 40px;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: 500;
-    cursor: pointer;
+  background: #f8fafc;
+  border-radius: 24px;
+  margin-top: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%; 
+  overflow: hidden !important;
 }
 .comments-list {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+  flex: 1;
+  overflow-y: auto;   
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0; 
 }
 .comment-card {
     background: white;
@@ -1076,4 +751,94 @@ body {
     align-items: center;
     gap: 4px;
     cursor: pointer;
+}
+
+/* ========== 响应式 ========== */
+@media (max-width: 768px) {
+    .header {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .header h1 {
+        flex: 1;
+        text-align: center;
+        font-size: 1.2rem;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .header-buttons {
+      display: none;
+    }
+    .app-container {
+        padding: 16px 12px 16px 12px;
+    }
+    .tabs {
+        display: none;
+    }
+    .post-list {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    .post-card {
+        padding: 12px 14px;
+    }
+    .post-card-header h3 {
+        font-size: 0.8rem;
+        padding: 2px 10px;
+    }
+    .stat-item {
+        font-size: 0.6rem;
+        padding: 2px 8px;
+    }
+    .task-meta {
+        font-size: 0.65rem;
+        gap: 6px;
+    }
+    .post-actions button {
+        padding: 4px 12px;
+        font-size: 0.7rem;
+    }
+    .modal-body-scroll {
+        padding: 20px 20px 12px 20px;
+    }
+    .form-actions {
+        padding: 10px;
+    }
+    .type-selector {
+        gap: 16px;
+        padding: 10px 16px;
+    }
+    .section-title {
+        margin-top: 20px;
+    }
+    .mobile-menu-btn {
+        width: 48px;
+        flex-shrink: 0;
+        background: transparent;
+        border: none;
+        font-size: 1.8rem;
+        cursor: pointer;
+        color: #1e293b;
+        display: flex;
+    }
+    .header::after {
+        content: '';
+        width: 48px;  
+        flex-shrink: 0;
+    }
+    .fab-container {
+        display: block;
+    }
+}
+
+@media (min-width: 768px) {
+    .fab-container {
+        display: none !important;
+    }
 }
