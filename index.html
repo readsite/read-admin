@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, shrink-to-fit=no, viewport-fit=cover">
-	<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-	<meta http-equiv="Pragma" content="no-cache">
-	<meta http-equiv="Expires" content="0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <link href="img/favicon.png" rel="icon">
     <title>Read.管理后台 | 内容发布中心</title>
     <link href="font/remixicon.css" rel="stylesheet">
@@ -23,11 +23,11 @@
                 <i class="ri-user-3-line"></i>
                 <input type="text" id="username" placeholder="用户名" autocomplete="off">
             </div>
-<div class="login-input-group">
-    <i class="ri-lock-line"></i>
-    <input type="password" id="password" placeholder="密码" autocomplete="off">
-    <i class="ri-eye-off-line toggle-password" id="togglePassword"></i>
-</div>
+            <div class="login-input-group">
+                <i class="ri-lock-line"></i>
+                <input type="password" id="password" placeholder="密码" autocomplete="off">
+                <i class="ri-eye-off-line toggle-password" id="togglePassword"></i>
+            </div>
             <button type="submit" class="login-btn">登录系统</button>
         </form>
     </div>
@@ -37,17 +37,21 @@
 <div id="appContainer" class="app-container" style="display: none;">
     <div class="container">
         <div class="header">
-            <h1><i class="ri-book-open-line"></i>Read.管理后台</h1>
+            <!-- 移动端菜单按钮 -->
+            <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="ri-menu-line"></i></button>
+            <h1>Read.管理后台</h1>
             <div class="header-buttons">
                 <button class="btn" id="newPostBtn"><i class="ri-add-line"></i> 新建发布</button>
                 <button class="btn" id="newChangelogBtn" style="background:#6c5ce7;"><i class="ri-history-line"></i> 新增日志</button>
-				<button class="btn" id="trashBinBtn" style="background:#475569;"><i class="ri-delete-bin-7-line"></i> 回收站</button>
+                <button class="btn" id="trashBinBtn" style="background:#475569;"><i class="ri-delete-bin-7-line"></i> 回收站</button>
+               <button class="btn" id="reportsHeaderBtn" style="background:#ef4444;"><i class="ri-alert-line"></i> 举报管理</button>
+                <button class="btn" id="commentsHeaderBtn" style="background:#10b981;"><i class="ri-chat-3-line"></i> 评论管理</button>
                 <button class="btn logout-btn" id="logoutBtn"><i class="ri-logout-box-line"></i> 退出</button>
             </div>
         </div>
 
         <!-- PC端顶部选项卡 -->
-                <div class="tabs">
+        <div class="tabs">
             <button id="tabPublished" class="active"><i class="ri-checkbox-circle-line"></i> 已发布</button>
             <button id="tabScheduled"><i class="ri-time-line"></i> 定时任务</button>
             <button id="tabDraft"><i class="ri-draft-line"></i> 草稿</button>
@@ -59,6 +63,17 @@
         <div id="scheduledList" class="post-list" style="display: none;"></div>
         <div id="draftList" class="post-list" style="display: none;"></div>
         <div id="changelogList" class="post-list" style="display: none;"></div>
+        
+        <!-- 评论管理面板 -->
+        <div id="commentsPanel" class="comments-panel" style="display: none;">
+            <div class="comments-header">
+                <button class="back-to-main-btn" id="backFromCommentsBtn"><i class="ri-arrow-left-line"></i> 返回</button>
+                <h3><i class="ri-chat-3-line"></i> 评论管理</h3>
+            </div>
+            <div id="commentsList" class="comments-list">
+                <div class="empty-message">加载中...</div>
+            </div>
+        </div>
     </div>
 
     <!-- 移动端底部导航栏 -->
@@ -77,6 +92,31 @@
     </div>
 </div>
 
+<!-- ========= 侧边栏 (移动端专属) ========= -->
+<div id="sidebarOverlay" class="sidebar-overlay"></div>
+<div id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+        <h3> Read.管理</h3>
+        <button class="sidebar-close" id="sidebarCloseBtn"><i class="ri-close-line"></i></button>
+    </div>
+    <div class="sidebar-menu">
+        <div class="sidebar-item" id="sidebarComments">
+            <i class="ri-chat-3-line"></i> 评论管理
+        </div>
+        <div class="sidebar-item" id="sidebarReports">
+    <i class="ri-alert-line"></i> 举报管理
+</div>
+        <div class="sidebar-item" id="sidebarTrash">
+            <i class="ri-delete-bin-7-line"></i> 回收站
+        </div>
+    </div>
+    <div class="sidebar-footer">
+        <div class="sidebar-item" id="sidebarLogout">
+            <i class="ri-logout-box-line"></i> 退出登录
+        </div>
+    </div>
+</div>
+
 <!-- 全屏模态窗 -->
 <div id="modalOverlay" class="modal-overlay">
     <div class="modal-container">
@@ -87,47 +127,30 @@
         <div class="modal-body-scroll">
             <form id="postForm">
                 <div id="publishFields">
-                    <div class="form-group">
-                        <label><i class="ri-calendar-todo-line"></i> 生效日期 (YYYY-MM-DD)</label>
-                        <input type="date" id="date" required>
-                    </div>
+                    <div class="form-group"><label><i class="ri-calendar-todo-line"></i> 生效日期</label><input type="date" id="date" required></div>
                     <div class="type-selector">
                         <label><input type="radio" name="publishType" value="immediate"> <i class="ri-flashlight-line"></i> 立即发布</label>
-                        <label><input type="radio" name="publishType" value="scheduled" checked> <i class="ri-alarm-line"></i> 定时发布（当日00:00自动发布）</label>
+                        <label><input type="radio" name="publishType" value="scheduled" checked> <i class="ri-alarm-line"></i> 定时发布</label>
                     </div>
                     <div class="section-title"><i class="ri-music-2-line"></i> 音乐模块</div>
-                    <div class="form-group"><label><i class="ri-headphone-line"></i> 标题</label><input type="text" id="musicTitle" placeholder="如：Like A Star"></div>
-                    <div class="form-group"><label><i class="ri-user-star-line"></i> 艺术家</label><input type="text" id="musicArtist" placeholder="Youngso Kim"></div>
-                    <div class="form-group"><label><i class="ri-image-line"></i> 封面URL</label><input type="url" id="musicCover" placeholder="https://..."></div>
-                    <div class="form-group"><label><i class="ri-play-list-line"></i> 音频URL</label><input type="url" id="musicSrc" placeholder="音频链接 或 网易云音乐ID"></div>
-                    
+                    <div class="form-group"><label>标题</label><input type="text" id="musicTitle" placeholder="如：Like A Star"></div>
+                    <div class="form-group"><label>艺术家</label><input type="text" id="musicArtist" placeholder="Youngso Kim"></div>
+                    <div class="form-group"><label>封面URL</label><input type="url" id="musicCover" placeholder="https://..."></div>
+                    <div class="form-group"><label>音频URL</label><input type="url" id="musicSrc" placeholder="音频链接"></div>
                     <div class="section-title"><i class="ri-double-quotes-L"></i> 句子摘录</div>
-                    <div class="form-group"><label><i class="ri-quote-text"></i> 内容</label><textarea id="sentenceText" class="auto-resize-textarea" placeholder="人生如逆旅，我亦是行人..."></textarea></div>
-                    <div class="form-group"><label><i class="ri-user-3-line"></i> 作者</label><input type="text" id="sentenceAuthor" placeholder="苏轼"></div>
-                    <div class="form-group">
-                        <label><i class="ri-image-line"></i> 句子配图URL</label>
-                        <input type="url" id="sentenceImageUrl" placeholder="https://...">
-                        <div class="upload-preview" id="sentenceImagePreviewContainer" style="display: none;">
-                            <img id="sentenceImagePreview" src="" alt="预览图">
-                        </div>
-                    </div>
-                    
+                    <div class="form-group"><label>内容</label><textarea id="sentenceText" class="auto-resize-textarea"></textarea></div>
+                    <div class="form-group"><label>作者</label><input type="text" id="sentenceAuthor" placeholder="苏轼"></div>
+                    <div class="form-group"><label>配图URL</label><input type="url" id="sentenceImageUrl"><div class="upload-preview" id="sentenceImagePreviewContainer" style="display:none"><img id="sentenceImagePreview"></div></div>
                     <div class="section-title"><i class="ri-article-line"></i> 深度文章</div>
-                    <div class="form-group"><label><i class="ri-title-line"></i> 标题</label><input type="text" id="articleTitle" placeholder="我应该怎样活着"></div>
-                    <div class="form-group"><label><i class="ri-user-smile-line"></i> 作者</label><input type="text" id="articleAuthor" placeholder="刘金增 等"></div>
-                    <div class="form-group"><label><i class="ri-file-text-line"></i> 正文</label><textarea id="articleContent" class="auto-resize-textarea" placeholder="完整文章内容..."></textarea></div>
-                    <div class="form-group">
-                        <label><i class="ri-image-line"></i> 文章配图URL</label>
-                        <input type="url" id="articleImageUrl" placeholder="https://...">
-                        <div class="upload-preview" id="imagePreviewContainer" style="display: none;">
-                            <img id="imagePreview" src="" alt="预览图">
-                        </div>
-                    </div>
+                    <div class="form-group"><label>标题</label><input type="text" id="articleTitle" placeholder="我应该怎样活着"></div>
+                    <div class="form-group"><label>作者</label><input type="text" id="articleAuthor" placeholder="刘金增 等"></div>
+                    <div class="form-group"><label>正文</label><textarea id="articleContent" class="auto-resize-textarea"></textarea></div>
+                    <div class="form-group"><label>配图URL</label><input type="url" id="articleImageUrl"><div class="upload-preview" id="imagePreviewContainer" style="display:none"><img id="imagePreview"></div></div>
                 </div>
                 <div id="changelogFields" style="display: none;">
-                    <div class="form-group"><label><i class="ri-number-1"></i> 版本号</label><input type="text" id="changelogVersion" placeholder="例如 1.0.1"></div>
-                    <div class="form-group"><label><i class="ri-calendar-todo-line"></i> 日期</label><input type="date" id="changelogDate"></div>
-                    <div class="form-group"><label><i class="ri-file-text-line"></i> 更新内容</label><textarea id="changelogContent" rows="4" placeholder="• 新增xxx功能\n• 修复xxx问题"></textarea></div>
+                    <div class="form-group"><label>版本号</label><input type="text" id="changelogVersion" placeholder="1.0.1"></div>
+                    <div class="form-group"><label>日期</label><input type="date" id="changelogDate"></div>
+                    <div class="form-group"><label>更新内容</label><textarea id="changelogContent" rows="4"></textarea></div>
                 </div>
             </form>
         </div>
@@ -138,24 +161,29 @@
         </div>
     </div>
 </div>
+
+<!-- 回收站模态窗 -->
 <div id="trashModal" class="modal-overlay trash-modal">
     <div class="modal-container">
         <div class="modal-header">
             <h2><i class="ri-delete-bin-7-line"></i> 回收站</h2>
             <button class="modal-close" id="closeTrashBtn"><i class="ri-close-line"></i></button>
         </div>
-        <div class="modal-body-scroll" style="padding: 16px 24px;">
-            <div class="trash-stats">
-                <span><i class="ri-information-line"></i> 删除的内容暂存于此，可恢复或彻底删除</span>
-                <span id="trashCount">0</span>
-            </div>
-            <div id="trashListContainer" class="trash-list">
-                <div class="empty-trash"><i class="ri-recycle-line"></i> 回收站为空</div>
-            </div>
+        <div class="modal-body-scroll">
+            <div class="trash-stats"><span><i class="ri-information-line"></i> 删除的内容暂存于此</span><span id="trashCount">0</span></div>
+            <div id="trashListContainer" class="trash-list"><div class="empty-trash"><i class="ri-recycle-line"></i> 回收站为空</div></div>
         </div>
-        <div class="form-actions" style="justify-content: flex-end;">
-            <button type="button" class="btn cancel" id="closeTrashFooterBtn">关闭</button>
-        </div>
+        <div class="form-actions"><button type="button" class="btn cancel" id="closeTrashFooterBtn">关闭</button></div>
+    </div>
+</div>
+<!-- 举报管理面板 -->
+<div id="reportsPanel" class="comments-panel" style="display: none;">
+    <div class="comments-header">
+        <button class="back-to-main-btn" id="backFromReportsBtn"><i class="ri-arrow-left-line"></i> 返回</button>
+        <h3><i class="ri-alert-line"></i> 举报管理</h3>
+    </div>
+    <div id="reportsList" class="comments-list">
+        <div class="empty-message">加载中...</div>
     </div>
 </div>
 <script src="js/script.js"></script>
