@@ -123,7 +123,7 @@ body {
 
 .app-container {
   overflow: hidden;
-    padding: 28px 20px;
+    padding: 10px;
     min-height: 100vh;
 }
 
@@ -176,7 +176,7 @@ body {
     gap: 8px;
     padding: 8px 12px;
     border: none;
-    border-radius: 40px;
+    border-radius: 8px;
     font-weight: 500;
     font-size: 0.95rem;
     cursor: pointer;
@@ -233,7 +233,7 @@ body {
     font-size: 1rem;
     font-weight: 500;
     cursor: pointer;
-    border-radius: 40px;
+    border-radius: 8px;
     transition: all 0.2s;
     color: #5b6e8c;
     display: inline-flex;
@@ -260,28 +260,20 @@ body {
 .post-card {
     background: #ffffff;
     border-radius: 8px;
-    padding: 20px 24px 20px 24px;
+    padding: 10px;
     box-shadow: 0 4px 14px rgba(0,0,0,0.02), 0 1px 3px rgba(0,0,0,0.03);
     transition: all 0.25s ease;
-    border: 1px solid #edf2f7;
     display: flex;
     flex-direction: column;
     height: 100%;
-}
-
-.post-card:hover {
-    box-shadow: 0 20px 30px -16px rgba(0,0,0,0.12);
-    transform: translateY(-3px);
-    border-color: #e0e7ff;
 }
 
 .post-card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: 5px;
     flex-wrap: wrap;
-    gap: 8px;
 }
 
 .post-card-header h3 {
@@ -293,7 +285,7 @@ body {
     color: #0f172a;
     background: #f8fafc;
     padding: 4px 14px 4px 10px;
-    border-radius: 8px;
+    border-radius: 4px;
     letter-spacing: -0.2px;
 }
 
@@ -309,7 +301,7 @@ body {
 .stat-item {
     background: #f1f5f9;
     padding: 6px 14px;
-    border-radius: 8px;
+    border-radius: 4px;
     font-size: 0.75rem;
     font-weight: 500;
     display: inline-flex;
@@ -324,7 +316,7 @@ body {
     display: flex;
     flex-wrap: wrap;
     gap: 12px;
-    margin: 8px 0 18px 0;
+    margin: 8px 0;
     background: #fafcff;
     padding: 10px 0;
     border-top: 1px solid #f0f2f8;
@@ -333,10 +325,10 @@ body {
 
 .post-actions {
     display: flex;
-    gap: 12px;
+    gap: 5px;
     justify-content: flex-end;
     margin-top: auto;
-    padding-top: 16px;
+    padding-top: 10px;
     border-top: 1px solid #eef2f6;
 }
 
@@ -344,7 +336,7 @@ body {
     background: #f1f5f9;
     border: none;
     padding: 7px 18px;
-    border-radius: 34px;
+    border-radius: 8px;
     font-size: 0.8rem;
     font-weight: 500;
     cursor: pointer;
@@ -534,15 +526,15 @@ body {
     width: 80px;
     height: 80px;
     object-fit: cover;
-    border-radius: 16px;
+    border-radius: 8px;
     border: 1px solid #e2e8f0;
 }
 
 /* ========== 移动端右下角悬浮按钮 ========== */
 .fab-container {
     position: fixed;
-    bottom: 28px;
-    right: 24px;
+    bottom: 60px;
+    right: 30px;
     z-index: 1150;
     display: none; /* 默认隐藏，移动端显示 */
 }
@@ -573,7 +565,7 @@ body {
     background: #ffffff;
     border: 1px solid #e2e8f0;
     padding: 12px 24px;
-    border-radius: 60px;
+    border-radius: 8px;
     font-weight: 500;
     cursor: pointer;
     color: #3b82f6;
@@ -685,10 +677,6 @@ body {
 
 /* 评论管理、举报管理、回收站面板统一样式 */
 .comments-panel {
-  background: #f8fafc;
-  border-radius: 24px;
-  margin-top: 16px;
-  padding: 16px;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -698,18 +686,17 @@ body {
 }
 .comments-list {
   flex: 1;
+  border-radius: 8px;
   overflow-y: auto;   
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 5px;
   min-height: 0; 
 }
 .comment-card {
     background: white;
-    border-radius: 20px;
-    padding: 16px;
+    padding: 10px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.04);
-    border: 1px solid #e2e8f0;
 }
 .comment-meta {
     display: flex;
@@ -732,10 +719,10 @@ body {
     background: #f1f5f9;
     display: inline-block;
     padding: 4px 10px;
-    border-radius: 30px;
+    border-radius: 8px;
     margin-top: 8px;
 }
-.comment-actions {
+.comment-actions,.report-actions {
     display: flex;
     justify-content: flex-end;
     margin-top: 12px;
@@ -744,7 +731,7 @@ body {
     background: #fff1f0;
     border: none;
     padding: 5px 12px;
-    border-radius: 30px;
+    border-radius: 8px;
     color: #e11d48;
     font-size: 0.7rem;
     display: inline-flex;
@@ -755,6 +742,33 @@ body {
 
 /* ========== 响应式 ========== */
 @media (max-width: 768px) {
+    .report-reason {
+        font-size: 0.8rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+        .report-time {
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+        .delete-comment-from-report {
+        flex-shrink: 0; 
+        margin-left: auto;
+    }
+    .report-meta {
+        flex-wrap: nowrap;  
+    }
+        .report-meta-left {
+        flex: 1;    
+        min-width: 0; 
+    }
+    .comment-header-sm {
+        font-size: 0.7rem;
+    }
+    .comment-text {
+        font-size: 0.8rem;
+    }
     .header {
         display: flex;
         flex-direction: row;
@@ -775,22 +789,12 @@ body {
     .header-buttons {
       display: none;
     }
-    .app-container {
-        padding: 16px 12px 16px 12px;
-    }
     .tabs {
         display: none;
     }
     .post-list {
         grid-template-columns: repeat(2, 1fr);
         gap: 12px;
-    }
-    .post-card {
-        padding: 12px 14px;
-    }
-    .post-card-header h3 {
-        font-size: 0.8rem;
-        padding: 2px 10px;
     }
     .stat-item {
         font-size: 0.6rem;
@@ -836,7 +840,280 @@ body {
         display: block;
     }
 }
+/* 卡片菜单按钮样式 */
+.card-menu-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.4rem;
+    cursor: pointer;
+    color: #64748b;
+    padding: 0 8px;
+    line-height: 1;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+.card-menu-btn:active {
+    background: #f1f5f9;
+}
 
+/* 卡片操作区域调整：只显示菜单按钮，靠右 */
+.post-actions {
+    justify-content: flex-end;
+}
+
+/* 菜单弹窗样式 */
+.card-menu-popup {
+    position: fixed;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.02);
+    min-width: 140px;
+    z-index: 10050;
+    overflow: hidden;
+    border: 1px solid #eef2f6;
+    padding: 8px 0;
+}
+
+.card-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 18px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+    color: #1e293b;
+}
+
+.card-menu-item i {
+    font-size: 1.2rem;
+    width: 20px;
+}
+
+.card-menu-item:active {
+    background: #f1f5f9;
+}
+
+.card-menu-item[data-action="delete"] {
+    color: #e11d48;
+}
+/* ========== 举报管理面板 ========== */
+
+/* 整个举报卡片 */
+.report-card {
+    background: #ffffff;
+    padding: 10px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+/* 举报原因独立卡片样式 (增强) */
+.report-reason {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #c0392b;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+
+/* 举报元数据区域布局 */
+.report-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+/* 举报时间样式 */
+.report-time {
+    font-size: 0.75rem;
+    color: #6c7a91;
+    background: #f8fafc;
+    padding: 5px 12px;
+}
+
+/* 被举报的内容区域 */
+.report-comment {
+    background: #fafcff;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 14px 0;
+    border: 1px solid #f0f2f8;
+}
+
+/* 评论头部（昵称、类型） */
+.comment-header-sm {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: #4b5565;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed #eef2f6;
+}
+
+.comment-header-sm span:first-child {
+    font-weight: 600;
+    color: #1e293b;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* 评论正文 */
+.comment-text {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: #1e293b;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+/* 删除按钮 */
+.delete-comment-from-report {
+    background: #fff1f0;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #e11d48;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.delete-comment-from-report:active {
+    background: #ffe4e2;
+    transform: scale(0.96);
+}
+/* ========== 回收站面板专用样式 ========== */
+
+/* 回收站列表容器：和评论/举报列表一样，可滚动 */
+.trash-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+}
+
+/* 回收站卡片：白色背景，柔和的边框阴影 */
+.trash-card {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    border: 1px solid #eef2f6;
+    transition: 0.2s;
+}
+
+/* 卡片头部：类型图标 + 原始ID */
+.trash-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 0.8rem;
+}
+
+/* 类型标签（已发布内容 / 定时任务 / 草稿） */
+.trash-type-badge {
+    background: #f1f5f9;
+    color: #475569;
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* 原始ID文字 */
+.trash-original-id {
+    color: #94a3b8;
+    font-size: 0.7rem;
+    font-family: monospace;
+}
+
+/* 内容预览 */
+.trash-preview {
+    font-size: 0.85rem;
+    color: #334155;
+    line-height: 1.5;
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+    word-break: break-all;
+}
+
+/* 操作按钮区域 */
+.trash-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    border-top: 1px solid #f0f2f8;
+    padding-top: 12px;
+}
+
+/* 恢复按钮 */
+.restore-btn {
+    background: #eef2ff;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #3b82f6;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s;
+}
+
+.restore-btn:active {
+    background: #e0e7ff;
+    transform: scale(0.96);
+}
+
+/* 彻底删除按钮 */
+.permanent-btn {
+    background: #fff1f0;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #e11d48;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s;
+}
+
+.permanent-btn:active {
+    background: #ffe4e2;
+    transform: scale(0.96);
+}
 @media (min-width: 768px) {
     .fab-container {
         display: none !important;
