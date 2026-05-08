@@ -8,7 +8,12 @@ let pagination = {
     scheduled: { page: 1, limit: 20, total: 0, loading: false, hasMore: true },
     draft: { page: 1, limit: 20, total: 0, loading: false, hasMore: true }
 };
+let trashStatsDiv = null;
 
+function setTrashStatsVisible(visible) {
+    if (!trashStatsDiv) return;
+    trashStatsDiv.style.display = visible ? 'flex' : 'none';
+}
 // 数据缓存
 let fullDataCache = {
     published: [],
@@ -65,6 +70,7 @@ function updateSidebarActive() {
 // ==================== 辅助函数 ====================
 function showReportsPanel() {
     updateMainHeader('reports');
+    setTrashStatsVisible(false);
     // 隐藏其他所有主内容区域
     const containers = ['postList', 'scheduledList', 'draftList'];
     containers.forEach(id => {
@@ -181,8 +187,10 @@ function showLogin() {
 function showApp() {
     document.getElementById('loginPanel').style.display = 'none';
     document.getElementById('appContainer').style.display = 'block';
-    loadCurrentTab();
+    loadCurrentTab();      // 内部会调用 switchTab，进而隐藏
     updateSidebarActive();
+    // 确保显式隐藏一次（安全起见）
+    setTrashStatsVisible(false);
 }
 
 function escapeHtml(str) {
@@ -509,6 +517,7 @@ function refreshCurrentTabData() {
 function switchTab(tab) {
     currentTab = tab;
     updateMainHeader(tab);
+    setTrashStatsVisible(false);
     if (reportsPanel) reportsPanel.style.display = 'none';
     if (commentsPanel) commentsPanel.style.display = 'none';
     const trashPanelElem = document.getElementById('trashPanel');
@@ -887,6 +896,7 @@ async function permanentDeleteTrashItem(trashId) {
 
 // 显示回收站面板（替代原来的模态框）
 async function showTrashPanel() {
+setTrashStatsVisible(true);
     updateMainHeader('trash');
     // 隐藏其他所有主内容区域
     const containers = ['postList', 'scheduledList', 'draftList'];
@@ -1201,6 +1211,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const togglePwd = document.getElementById('togglePassword');
     const pwdInput = document.getElementById('password');
+    trashStatsDiv = document.querySelector('.trash-stats');
+if (trashStatsDiv) {
+    setTrashStatsVisible(false);  // 初始隐藏
+}
     if (reportsHeaderBtn) reportsHeaderBtn.addEventListener('click', showReportsPanel);
     if (sidebarReports) {
         sidebarReports.addEventListener('click', () => {
@@ -1341,6 +1355,7 @@ const commentsHeaderBtn = document.getElementById('commentsHeaderBtn');
 
 function showCommentsPanel() {
     updateMainHeader('comments');
+    setTrashStatsVisible(false);
     const containers = ['postList', 'scheduledList', 'draftList'];
     containers.forEach(id => {
         const el = document.getElementById(id);
