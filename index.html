@@ -46,7 +46,12 @@
     <div class="container">
         <div class="header">
             <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="ri-menu-line"></i></button>
-            <h1 id="mainHeaderTitle">已发布内容</h1>
+<div class="title-wrapper">
+    <h1 id="mainHeaderTitle">已发布内容</h1>
+    <div class="trash-stats">
+        <span id="trashPanelCount">0 项</span>
+    </div>
+</div>
             <div class="header-buttons">
                 <button class="btn" id="newPostBtn"><i class="ri-add-line"></i> 新建发布</button>
                 <button class="btn" id="trashBinBtn" style="background:#475569;"><i class="ri-delete-bin-7-line"></i> 回收站</button>
@@ -83,9 +88,7 @@
         </div>
 
         <div id="trashPanel" class="comments-panel trash-panel" style="display: none;">
-            <div class="trash-stats" style="margin-bottom: 20px; display: flex; justify-content: space-between;">
-                <span id="trashPanelCount">0 项</span>
-            </div>
+
             <div id="trashListPanel" class="trash-list">
                 <div class="empty-message">加载中...</div>
             </div>
