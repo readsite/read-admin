@@ -769,6 +769,22 @@ body {
     .comment-text {
         font-size: 0.8rem;
     }
+.title-wrapper {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+}
+
+#mainHeaderTitle {
+    text-align: left;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+
     .header {
         display: flex;
         flex-direction: row;
@@ -777,9 +793,8 @@ body {
         gap: 8px;
         flex-wrap: wrap;
     }
+    
     .header h1 {
-        flex: 1;
-        text-align: center;
         font-size: 1.2rem;
         margin: 0;
         white-space: nowrap;
@@ -1012,12 +1027,20 @@ body {
     gap: 12px;
     min-height: 0;
 }
-
+.trash-stats {
+    flex-shrink: 0;
+    margin-left: 8px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
 /* 回收站卡片：白色背景，柔和的边框阴影 */
 .trash-card {
     background: #ffffff;
     border-radius: 8px;
-    padding: 16px;
+    padding: 10px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     border: 1px solid #eef2f6;
     transition: 0.2s;
@@ -1113,6 +1136,27 @@ body {
 .permanent-btn:active {
     background: #ffe4e2;
     transform: scale(0.96);
+}
+/* ========== 修复回收站滚动问题 ========== */
+#trashPanel {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#trashPanel .trash-list {
+    flex: 1;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    max-height: 100%;
+}
+
+/* 确保所有滚动列表容器在移动端有平滑滚动 */
+.comments-list,
+.trash-list {
+    -webkit-overflow-scrolling: touch;
 }
 @media (min-width: 768px) {
     .fab-container {
