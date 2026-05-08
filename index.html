@@ -10,86 +10,6 @@
     <title>Read.管理后台 | 内容发布中心</title>
     <link href="font/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
-    <style>
-        /* 确保回收站面板与评论面板样式统一 */
-        .trash-panel .trash-list {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-        .trash-panel .trash-card {
-            background: white;
-            border-radius: 20px;
-            padding: 18px;
-            border: 1px solid #eef2f6;
-            transition: 0.2s;
-        }
-        .trash-panel .trash-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 12px;
-        }
-        .trash-panel .trash-type-badge {
-            background: #eef2ff;
-            padding: 4px 14px;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: #1e293b;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .trash-panel .trash-preview {
-            font-size: 0.85rem;
-            color: #334155;
-            margin: 12px 0;
-            background: #f8fafc;
-            padding: 10px 14px;
-            border-radius: 16px;
-            word-break: break-word;
-        }
-        .trash-panel .trash-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
-            margin-top: 12px;
-        }
-        .trash-panel .trash-actions button {
-            background: white;
-            border: 1px solid #e2e8f0;
-            padding: 6px 18px;
-            border-radius: 30px;
-            font-size: 0.75rem;
-            font-weight: 500;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: 0.2s;
-        }
-        .trash-panel .trash-actions button.restore-btn {
-            background: #eef2ff;
-            color: #2563eb;
-            border-color: #cbd5e1;
-        }
-        .trash-panel .trash-actions button.permanent-btn {
-            background: #fff1f0;
-            color: #e11d48;
-            border-color: #ffe4e2;
-        }
-        .trash-panel .empty-message {
-            text-align: center;
-            padding: 56px 20px;
-            background: #ffffffcc;
-            border-radius: 8px;
-            color: #6c7a91;
-            font-weight: 500;
-        }
-    </style>
 </head>
 <body>
 
@@ -110,6 +30,14 @@
             </div>
             <button type="submit" class="login-btn">登录系统</button>
         </form>
+    </div>
+</div>
+<div id="cardMenuPopup" class="card-menu-popup" style="display: none;">
+    <div class="card-menu-item" data-action="edit">
+        <i class="ri-edit-line"></i> 编辑
+    </div>
+    <div class="card-menu-item" data-action="delete">
+        <i class="ri-delete-bin-line"></i> 删除
     </div>
 </div>
 
@@ -156,7 +84,6 @@
 
         <div id="trashPanel" class="comments-panel trash-panel" style="display: none;">
             <div class="trash-stats" style="margin-bottom: 20px; display: flex; justify-content: space-between;">
-                <span><i class="ri-information-line"></i> 删除的内容暂存于此，可恢复</span>
                 <span id="trashPanelCount">0 项</span>
             </div>
             <div id="trashListPanel" class="trash-list">
@@ -165,7 +92,7 @@
         </div>
     </div>
 
-    <!-- 移动端右下角悬浮新增按钮 -->
+    <!-- 移动端右下角悬浮新增按钮 (长按拖拽) -->
     <div class="fab-container" id="mobileFabContainer">
         <div class="fab-btn" id="mobileFabBtn"><i class="ri-add-line"></i></div>
     </div>
@@ -247,9 +174,426 @@
 
 <script src="js/script.js"></script>
 <script>
-    // 内联补充全局函数：侧边栏高亮及标题管理
+    // ==================== 移动端悬浮球: 长按拖拽 + 位置记忆 ====================
+    (function initDraggableFab() {
+        // 仅在移动端生效 (宽度≤768)
+        const isMobile = () => window.innerWidth <= 768;
+        if (!isMobile()) return;
+
+        const fabContainer = document.getElementById('mobileFabContainer');
+        const fabBtn = document.getElementById('mobileFabBtn');
+        if (!fabContainer || !fabBtn) return;
+
+        // 拖拽状态变量
+        let longPressTimer = null;
+        let isLongPressActive = false;      // 长按已触发(未松手)
+        let dragActive = false;              // 拖拽移动模式中
+        let startX = 0, startY = 0;
+        let initialLeft = 0, initialTop = 0;
+        let fabWidth = 0, fabHeight = 0;
+        let suppressClick = false;           // 阻止click事件(长按/拖拽后不触发新增)
+        let activeTouchId = null;             // 跟踪当前触摸点ID
+        let moveThresholdPassed = false;      // 移动超过阈值后取消长按定时器
+        
+        // 存储Key
+        const STORAGE_KEY = 'read_fab_position';
+        const EDGE_MARGIN = 12;               // 距离屏幕边缘间距(px)
+        
+        // 获取按钮当前实际尺寸(实时)
+        function updateFabSize() {
+            const rect = fabContainer.getBoundingClientRect();
+            fabWidth = rect.width;
+            fabHeight = rect.height;
+        }
+        
+        // 边界限制 (left, top 基于视口)
+        function clampPosition(left, top) {
+            const winW = window.innerWidth;
+            const winH = window.innerHeight;
+            const minLeft = EDGE_MARGIN;
+            const maxLeft = winW - fabWidth - EDGE_MARGIN;
+            const minTop = EDGE_MARGIN;
+            const maxTop = winH - fabHeight - EDGE_MARGIN;
+            return {
+                left: Math.min(maxLeft, Math.max(minLeft, left)),
+                top: Math.min(maxTop, Math.max(minTop, top))
+            };
+        }
+        
+        // 应用位置 (将容器设置为 left/top 定位, 清除 right/bottom)
+        function setFabPosition(left, top, saveToStorage = true) {
+            if (!fabContainer) return;
+            const clamped = clampPosition(left, top);
+            fabContainer.style.left = clamped.left + 'px';
+            fabContainer.style.top = clamped.top + 'px';
+            fabContainer.style.right = 'auto';
+            fabContainer.style.bottom = 'auto';
+            if (saveToStorage) {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify({ left: clamped.left, top: clamped.top }));
+                } catch(e) {}
+            }
+        }
+        
+        // 从存储读取位置并应用 (若无存储则保持默认右下角样式)
+        function loadStoredPosition() {
+            if (!fabContainer) return;
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                try {
+                    const pos = JSON.parse(stored);
+                    if (typeof pos.left === 'number' && typeof pos.top === 'number') {
+                        updateFabSize();
+                        setFabPosition(pos.left, pos.top, false);
+                        return;
+                    }
+                } catch(e) {}
+            }
+            // 无存储: 确保 right/bottom 默认样式生效 (清除 left/top)
+            fabContainer.style.left = '';
+            fabContainer.style.top = '';
+            fabContainer.style.right = '30px';
+            fabContainer.style.bottom = '60px';
+        }
+        
+        // 重置到默认位置 (右下角)
+        function resetToDefaultPosition() {
+            if (!fabContainer) return;
+            fabContainer.style.left = '';
+            fabContainer.style.top = '';
+            fabContainer.style.right = '30px';
+            fabContainer.style.bottom = '60px';
+            try {
+                localStorage.removeItem(STORAGE_KEY);
+            } catch(e) {}
+        }
+        
+        // 清理长按定时器及状态标志
+        function clearLongPressTimer() {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+        }
+        
+        // 结束拖拽 (重置所有标志)
+        function endDrag() {
+            if (dragActive) {
+                // 拖拽结束时保存最终位置 (位置已在move中存储，无需额外存储，但确保最终边界保存)
+                if (fabContainer) {
+                    const left = parseFloat(fabContainer.style.left);
+                    const top = parseFloat(fabContainer.style.top);
+                    if (!isNaN(left) && !isNaN(top)) {
+                        setFabPosition(left, top, true);
+                    }
+                }
+                // 移除拖拽样式
+                if (fabBtn) fabBtn.classList.remove('dragging-active');
+                fabContainer.classList.remove('dragging-global');
+            }
+            dragActive = false;
+            isLongPressActive = false;
+            moveThresholdPassed = false;
+            clearLongPressTimer();
+            // 设置抑制click标记，确保松手后不触发新增
+            if (isLongPressActiveTimerFlag || dragActive) {
+                suppressClick = true;
+                // 延迟重置，防止click在touchend后立即触发
+                setTimeout(() => { suppressClick = false; }, 100);
+            }
+            // 重置额外标志
+            window._longPressTriggered = false;
+            activeTouchId = null;
+        }
+        
+        let isLongPressActiveTimerFlag = false; // 辅助标志
+        
+        // 进入拖拽模式 (长按激活后首次移动触发)
+        function activateDragMode(currentTouch, currentLeft, currentTop) {
+            if (dragActive) return;
+            dragActive = true;
+            isLongPressActive = true;
+            isLongPressActiveTimerFlag = true;
+            // 视觉反馈
+            if (fabBtn) fabBtn.classList.add('dragging-active');
+            fabContainer.classList.add('dragging-global');
+            // 阻止页面滚动 & 文本选择
+            document.body.style.userSelect = 'none';
+            document.body.style.webkitUserSelect = 'none';
+            // 记录拖拽初始值
+            startX = currentTouch.clientX;
+            startY = currentTouch.clientY;
+            initialLeft = currentLeft;
+            initialTop = currentTop;
+        }
+        
+        // 拖拽移动更新位置
+        function onDragMove(clientX, clientY) {
+            if (!dragActive) return false;
+            const dx = clientX - startX;
+            const dy = clientY - startY;
+            let newLeft = initialLeft + dx;
+            let newTop = initialTop + dy;
+            const clamped = clampPosition(newLeft, newTop);
+            fabContainer.style.left = clamped.left + 'px';
+            fabContainer.style.top = clamped.top + 'px';
+            fabContainer.style.right = 'auto';
+            fabContainer.style.bottom = 'auto';
+            // 实时存储到localStorage (频繁写入无大碍)
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({ left: clamped.left, top: clamped.top }));
+            } catch(e) {}
+            return true;
+        }
+        
+        // 触摸开始
+        function onTouchStart(e) {
+            if (!isMobile()) return;
+            // 防止多指干扰: 只跟踪第一个触摸点
+            if (activeTouchId !== null) return;
+            const touch = e.touches[0];
+            activeTouchId = touch.identifier;
+            
+            // 清除之前状态
+            clearLongPressTimer();
+            suppressClick = false;
+            isLongPressActive = false;
+            dragActive = false;
+            moveThresholdPassed = false;
+            isLongPressActiveTimerFlag = false;
+            if (fabBtn) fabBtn.classList.remove('dragging-active');
+            
+            // 获取当前元素位置(计算left/top备用)
+            updateFabSize();
+            let currentLeft = 0, currentTop = 0;
+            const computedStyle = window.getComputedStyle(fabContainer);
+            const leftVal = computedStyle.left;
+            const topVal = computedStyle.top;
+            if (leftVal && leftVal !== 'auto') {
+                currentLeft = parseFloat(leftVal);
+                currentTop = parseFloat(topVal);
+            } else {
+                // 如果是right/bottom模式，则换算为left/top
+                const rect = fabContainer.getBoundingClientRect();
+                currentLeft = rect.left;
+                currentTop = rect.top;
+                // 保证存储坐标体系一致: 直接设置left/top，清除right/bottom
+                setFabPosition(currentLeft, currentTop, false);
+            }
+            if (isNaN(currentLeft)) currentLeft = 0;
+            if (isNaN(currentTop)) currentTop = 0;
+            initialLeft = currentLeft;
+            initialTop = currentTop;
+            startX = touch.clientX;
+            startY = touch.clientY;
+            
+            // 设定长按定时器 (350ms 后激活拖拽模式)
+            longPressTimer = setTimeout(() => {
+                // 长按时，如果没有移动过大的阈值或者还未进入拖拽，那么激活拖拽模式
+                if (!dragActive && !moveThresholdPassed) {
+                    // 进入长按拖拽预备状态（尚未移动，但已算长按）
+                    isLongPressActive = true;
+                    isLongPressActiveTimerFlag = true;
+                    // 震动感(可选) - 仅支持且不影响体验
+                    if (navigator.vibrate) navigator.vibrate(30);
+                    // 未移动时先激活拖拽模式 (此时还未开始drag，等待首次move真正进入拖拽)
+                    // 同时显示拖拽样式预备
+                    if (fabBtn) fabBtn.classList.add('dragging-active');
+                    fabContainer.classList.add('dragging-global');
+                    // 注意: 此时dragActive = false, 但用户移动手指时会立即激活dragActive
+                    // 为了在touchmove中知晓长按已触发，设置一个变量
+                    window._longPressTriggered = true;
+                }
+                longPressTimer = null;
+            }, 300);
+        }
+        
+        // 触摸移动
+        function onTouchMove(e) {
+            if (!isMobile()) return;
+            // 找到当前激活触摸点
+            let activeTouch = null;
+            for (let i = 0; i < e.touches.length; i++) {
+                if (e.touches[i].identifier === activeTouchId) {
+                    activeTouch = e.touches[i];
+                    break;
+                }
+            }
+            if (!activeTouch) return;
+            
+            const deltaX = Math.abs(activeTouch.clientX - startX);
+            const deltaY = Math.abs(activeTouch.clientY - startY);
+            const moveDistance = Math.hypot(deltaX, deltaY);
+            
+            // 若移动距离超过8px 且 尚未进入拖拽且长按定时器还在，则取消长按(变成普通滑动)
+            if (!dragActive && !isLongPressActive && longPressTimer && moveDistance > 8) {
+                clearLongPressTimer();
+                moveThresholdPassed = true;
+                return;
+            }
+            
+            // 长按已经触发(定时器已执行)但还未正式激活dragActive, 且移动距离超过3px -> 立即激活拖拽模式
+            if (!dragActive && (window._longPressTriggered || isLongPressActive) && moveDistance > 3) {
+                // 激活拖拽模式（更新初始位置和偏移）
+                updateFabSize();
+                let curLeft = 0, curTop = 0;
+                const leftStyle = fabContainer.style.left;
+                if (leftStyle && leftStyle !== 'auto') {
+                    curLeft = parseFloat(leftStyle);
+                    curTop = parseFloat(fabContainer.style.top);
+                } else {
+                    const rect = fabContainer.getBoundingClientRect();
+                    curLeft = rect.left;
+                    curTop = rect.top;
+                }
+                if (isNaN(curLeft)) curLeft = initialLeft;
+                if (isNaN(curTop)) curTop = initialTop;
+                activateDragMode(activeTouch, curLeft, curTop);
+                // 在activateDragMode中已经记录了startX,startY基于当前触摸点, 但由于移动了需要重新对齐偏移
+                startX = activeTouch.clientX;
+                startY = activeTouch.clientY;
+                initialLeft = curLeft;
+                initialTop = curTop;
+                // 防止页面滚动
+                e.preventDefault();
+                return;
+            }
+            
+            // 正式拖拽移动
+            if (dragActive) {
+                onDragMove(activeTouch.clientX, activeTouch.clientY);
+                e.preventDefault();
+            }
+        }
+        
+        // 触摸结束
+        function onTouchEnd(e) {
+            if (!isMobile()) return;
+            // 无论是否拖拽，都需要结束并清理
+            const wasDragging = dragActive;
+            const wasLongPress = isLongPressActive;
+            
+            endDrag();
+            // 恢复body选择
+            document.body.style.userSelect = '';
+            document.body.style.webkitUserSelect = '';
+            
+            // 如果没有进入拖拽模式且没有长按触发(即轻触)，则手动触发一次click（模拟新增）
+            if (!wasDragging && !wasLongPress && !suppressClick) {
+                // 纯点击：触发新建发布 (保留原有逻辑)
+                if (fabContainer && document.getElementById('newPostBtn')) {
+                    // 延迟执行避免和触摸事件冲突
+                    setTimeout(() => {
+                        const newPostBtn = document.getElementById('newPostBtn');
+                        if (newPostBtn) newPostBtn.click();
+                    }, 10);
+                }
+            } else {
+                // 防止click被意外触发
+                suppressClick = true;
+                setTimeout(() => { suppressClick = false; }, 100);
+            }
+            activeTouchId = null;
+            window._longPressTriggered = false;
+            isLongPressActiveTimerFlag = false;
+        }
+        
+        // 触摸取消 (系统中断)
+        function onTouchCancel(e) {
+            endDrag();
+            document.body.style.userSelect = '';
+            activeTouchId = null;
+            window._longPressTriggered = false;
+            isLongPressActiveTimerFlag = false;
+        }
+        
+        // 全局click拦截 (配合suppressClick避免拖拽后误触新增)
+        function interceptFabClick(e) {
+            if (suppressClick) {
+                e.stopPropagation();
+                e.preventDefault();
+                suppressClick = false;
+                return false;
+            }
+            // 正常点击由原有click处理，不做额外操作（但不会重复触发，因为touchEnd已经模拟了click，这里阻止双重）
+            // 为了完全避免原script中setupMobileFab的重复触发，但原有setupMobileFab中绑定了click，且我们上面手动触发了newPostBtn.click，
+            // 此处需要额外判断: 如果手动已触发，则不再触发原有click回调。但为了避免双重，设置标志另一个防抖。
+            // 简易处理：让原有的fabBtn click完全交由我们的逻辑，但不破坏之前的功能，我们只保留原有setupMobileFab提供的click? 但会导致双击效果。
+            // 解决方案: 在touchEnd中手动触发了newPostBtn.click, 所以这里拦截掉click避免二次调用。
+            if (!dragActive && !isLongPressActive) {
+                // 常规点击仍然允许执行原有逻辑（原script中的click事件）但我们已经触发了，需阻止原生click重复调用
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                return false;
+            }
+            return true;
+        }
+        
+        // 绑定事件
+        function bindDragEvents() {
+            fabContainer.addEventListener('touchstart', onTouchStart, { passive: false });
+            fabContainer.addEventListener('touchmove', onTouchMove, { passive: false });
+            fabContainer.addEventListener('touchend', onTouchEnd);
+            fabContainer.addEventListener('touchcancel', onTouchCancel);
+            // 拦截click避免拖拽后误触发原有新增
+            fabBtn.addEventListener('click', interceptFabClick, true);
+        }
+        
+        // 窗口大小变化时重新校正位置 (确保按钮不超出边界)
+        function onWindowResize() {
+            if (!isMobile()) return;
+            updateFabSize();
+            let left = null, top = null;
+            const leftStyle = fabContainer.style.left;
+            if (leftStyle && leftStyle !== 'auto') {
+                left = parseFloat(leftStyle);
+                top = parseFloat(fabContainer.style.top);
+            } else {
+                const rect = fabContainer.getBoundingClientRect();
+                left = rect.left;
+                top = rect.top;
+            }
+            if (!isNaN(left) && !isNaN(top)) {
+                const clamped = clampPosition(left, top);
+                if (clamped.left !== left || clamped.top !== top) {
+                    setFabPosition(clamped.left, clamped.top, true);
+                }
+            } else {
+                // 读取存储或者重置
+                loadStoredPosition();
+            }
+        }
+        
+        // 初始化: 加载存储位置 + 绑定事件
+        function init() {
+            loadStoredPosition();
+            bindDragEvents();
+            window.addEventListener('resize', onWindowResize);
+            // 监听页面滚动时不处理，仅保留位置
+            // 观察appContainer显示后重新检查位置（防止懒加载导致初始定位错误）
+            const observer = new MutationObserver(() => {
+                if (fabContainer && window.getComputedStyle(fabContainer).display !== 'none') {
+                    updateFabSize();
+                    loadStoredPosition();
+                    observer.disconnect();
+                }
+            });
+            observer.observe(document.getElementById('appContainer') || document.body, { attributes: true, childList: true, subtree: false });
+        }
+        
+        // 延迟确保移动端样式完全渲染
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+        
+        // 暴露手动重置默认位置的方法 (可选，不用暴露但内部留用)
+        window.resetFabToDefault = resetToDefaultPosition;
+    })();
+
+    // 原有内联侧边栏与标题更新(保持不变)
     (function() {
-        // 标题映射
         const headerTitleMap = {
             published: '已发布内容',
             scheduled: '定时任务',
@@ -264,7 +608,6 @@
                 titleEl.innerText = headerTitleMap[moduleKey];
             }
         };
-        // 全局关闭侧边栏
         window.closeSidebarGlobal = function() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebarOverlay');
