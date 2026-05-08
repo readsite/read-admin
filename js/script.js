@@ -90,7 +90,7 @@ async function loadReports() {
         if (!response.ok) throw new Error('获取举报列表失败');
         const reports = await response.json();
         if (!reports.length) {
-            reportsListDiv.innerHTML = '<div class="empty-message"><i class="ri-alert-line"></i> 暂无举报记录</div>';
+            reportsListDiv.innerHTML = '<div class="empty-message"> 暂无举报记录</div>';
             return;
         }
         let html = '';
@@ -105,7 +105,7 @@ async function loadReports() {
             html += `
                 <div class="report-card" data-comment-id="${rep.comment_id}">
                     <div class="report-meta">
-                        <span class="report-reason"><i class="ri-alert-line"></i> 举报原因：${reason}</span>
+                        <span class="report-reason">举报原因：${reason}</span>
                         <span class="report-time">${createdAt}</span>
                     </div>
                     <div class="report-comment">
@@ -442,8 +442,7 @@ function renderTabData(tab) {
                         <div class="stat-item"><i class="ri-article-line"></i> 收藏 ${articleStats.favorites} · 分享 ${articleStats.shares}</div>
                     </div>
                     <div class="post-actions">
-                        <button onclick="editPost('${post.date}')"><i class="ri-edit-line"></i> 编辑</button>
-                        <button class="delete" onclick="deletePost('${post.date}')"><i class="ri-delete-bin-line"></i> 删除</button>
+                        <button class="card-menu-btn" data-type="published" data-identifier="${escapeHtml(post.date)}"><i class="ri-more-fill"></i></button>
                     </div>
                 </div>
             `;
@@ -457,8 +456,7 @@ function renderTabData(tab) {
                     <span><i class="ri-chat-quote-line"></i> ${escapeHtml((task.content?.sentence?.text || '').substring(0, 40))}</span>
                 </div>
                 <div class="post-actions">
-                    <button onclick="editScheduled('${task.id}')"><i class="ri-edit-line"></i> 编辑</button>
-                    <button class="delete" onclick="deleteScheduled('${task.id}')"><i class="ri-delete-bin-line"></i> 删除</button>
+                    <button class="card-menu-btn" data-type="scheduled" data-identifier="${task.id}"><i class="ri-more-2-fill"></i></button>
                 </div>
             </div>
         `).join('');
@@ -474,8 +472,7 @@ function renderTabData(tab) {
                         <span><i class="ri-chat-quote-line"></i> ${escapeHtml(sentencePreview)}${draft.sentence?.text && draft.sentence.text.length > 42 ? '…' : ''}</span>
                     </div>
                     <div class="post-actions">
-                        <button onclick="editDraft('${draft.id}')"><i class="ri-edit-line"></i> 编辑</button>
-                        <button class="delete" onclick="deleteDraft('${draft.id}')"><i class="ri-delete-bin-line"></i> 删除</button>
+                        <button class="card-menu-btn" data-type="draft" data-identifier="${draft.id}"><i class="ri-more-2-fill"></i></button>
                     </div>
                 </div>
             `;
@@ -486,6 +483,9 @@ function renderTabData(tab) {
         html += `<div class="pagination-more"><button class="load-more-btn" onclick="loadMore('${tab}')"><i class="ri-arrow-down-line"></i> 加载更多</button></div>`;
     }
     container.innerHTML = html;
+
+    // 绑定菜单按钮事件
+    bindCardMenuButtons();
 }
 
 window.loadMore = function (tab) {
@@ -911,7 +911,7 @@ async function loadTrashData() {
         const items = await fetchTrashItems();
         if (countSpan) countSpan.innerText = `${items.length} 项`;
         if (!items.length) {
-            container.innerHTML = '<div class="empty-message"><i class="ri-recycle-line"></i> 回收站为空</div>';
+            container.innerHTML = '<div class="empty-message"> 回收站为空</div>';
             return;
         }
         let html = '';
@@ -1421,3 +1421,125 @@ async function loadComments() {
         commentsListDiv.innerHTML = `<div class="empty-message"><i class="ri-error-warning-line"></i> 加载评论失败：${err.message}</div>`;
     }
 }
+// ==================== 卡片菜单弹窗逻辑 ====================
+let activeMenuPopup = null;
+let currentMenuCard = null; // 存储当前打开菜单的卡片信息 { type, identifier }
+
+function closeCardMenu() {
+    const popup = document.getElementById('cardMenuPopup');
+    if (popup) {
+        popup.style.display = 'none';
+    }
+    activeMenuPopup = null;
+    currentMenuCard = null;
+}
+
+function showCardMenu(event, type, identifier) {
+    // 关闭已打开的菜单
+    closeCardMenu();
+    
+    const btn = event.currentTarget;
+    const rect = btn.getBoundingClientRect();
+    const popup = document.getElementById('cardMenuPopup');
+    if (!popup) return;
+    
+    // 存储当前卡片信息
+    currentMenuCard = { type, identifier };
+    
+    // 计算位置（默认在按钮下方左对齐）
+    let top = rect.bottom + window.scrollY + 5;
+    let left = rect.left + window.scrollX;
+    
+    // 边界检测，防止超出视口右侧
+    const popupWidth = 160; // 预估宽度
+    if (left + popupWidth > window.innerWidth) {
+        left = rect.right + window.scrollX - popupWidth;
+    }
+    // 边界检测，防止超出视口底部
+    if (top + 150 > window.innerHeight + window.scrollY) {
+        top = rect.top + window.scrollY - 150;
+    }
+    
+    popup.style.top = `${top}px`;
+    popup.style.left = `${left}px`;
+    popup.style.display = 'block';
+    activeMenuPopup = popup;
+    
+    // 阻止事件冒泡，避免立即触发 document 关闭
+    event.stopPropagation();
+}
+
+function handleCardMenuAction(action) {
+    if (!currentMenuCard) return;
+    
+    const { type, identifier } = currentMenuCard;
+    if (action === 'edit') {
+        if (type === 'published') {
+            window.editPost(identifier);
+        } else if (type === 'scheduled') {
+            window.editScheduled(identifier);
+        } else if (type === 'draft') {
+            window.editDraft(identifier);
+        }
+    } else if (action === 'delete') {
+        if (type === 'published') {
+            window.deletePost(identifier);
+        } else if (type === 'scheduled') {
+            window.deleteScheduled(identifier);
+        } else if (type === 'draft') {
+            window.deleteDraft(identifier);
+        }
+    }
+    closeCardMenu();
+}
+
+function bindCardMenuButtons() {
+    const buttons = document.querySelectorAll('.card-menu-btn');
+    buttons.forEach(btn => {
+        // 移除旧的监听器避免重复绑定
+        btn.removeEventListener('click', btn._menuClickHandler);
+        const handler = (e) => {
+            e.stopPropagation();
+            const type = btn.dataset.type;
+            const identifier = btn.dataset.identifier;
+            if (type && identifier) {
+                showCardMenu(e, type, identifier);
+            }
+        };
+        btn._menuClickHandler = handler;
+        btn.addEventListener('click', handler);
+    });
+}
+
+// 全局点击关闭菜单
+document.addEventListener('click', function(e) {
+    const popup = document.getElementById('cardMenuPopup');
+    if (popup && popup.style.display === 'block') {
+        // 如果点击的目标不是菜单内部，则关闭
+        if (!popup.contains(e.target)) {
+            closeCardMenu();
+        }
+    }
+});
+
+// 滚动时自动关闭菜单
+window.addEventListener('scroll', function() {
+    closeCardMenu();
+}, true);
+
+// 菜单项的点击事件（预先绑定，避免重复）
+document.addEventListener('DOMContentLoaded', function() {
+    const popup = document.getElementById('cardMenuPopup');
+    if (popup) {
+        popup.addEventListener('click', function(e) {
+            const item = e.target.closest('.card-menu-item');
+            if (item) {
+                const action = item.dataset.action;
+                if (action) {
+                    handleCardMenuAction(action);
+                }
+                e.stopPropagation();
+            }
+        });
+    }
+});
