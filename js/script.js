@@ -1,19 +1,22 @@
 // ==================== 全局变量（前置） ====================
 const API_BASE = 'https://solitudenook.top';
-let currentTab = 'published'; // 当前选中的标签页
+let currentTab = 'published';
 let reportsPanel, reportsListDiv, reportsHeaderBtn, sidebarReports;
+let trashPanelCountEl, trashPanelCountLargeEl, sidebarTrashBadge;
+let mainTabs;
+
 // 分页状态管理
 let pagination = {
     published: { page: 1, limit: 20, total: 0, loading: false, hasMore: true },
     scheduled: { page: 1, limit: 20, total: 0, loading: false, hasMore: true },
     draft: { page: 1, limit: 20, total: 0, loading: false, hasMore: true }
 };
-let trashStatsDiv = null;
 
 function setTrashStatsVisible(visible) {
-    if (!trashStatsDiv) return;
-    trashStatsDiv.style.display = visible ? 'flex' : 'none';
+    if (trashPanelCountEl) trashPanelCountEl.style.display = visible ? 'inline-flex' : 'none';
+    if (trashPanelCountLargeEl) trashPanelCountLargeEl.style.display = visible ? 'inline-flex' : 'none';
 }
+
 // 数据缓存
 let fullDataCache = {
     published: [],
@@ -21,7 +24,7 @@ let fullDataCache = {
     draft: []
 };
 
-// 移动端显示条数限制（仅用于控制首屏显示，分页加载仍然生效）
+// 移动端显示条数限制
 let mobilePageLimit = {
     published: 15,
     scheduled: 15,
@@ -29,11 +32,11 @@ let mobilePageLimit = {
 };
 
 // 表单编辑状态
-let currentMode = 'normal'; // normal, editPost, editScheduled, editDraft
+let currentMode = 'normal';
 let editTargetId = null;
 let editTargetDate = null;
 
-// DOM 元素引用（延迟初始化，在 DOMContentLoaded 中赋值）
+// DOM 元素引用
 let dateInput, musicTitle, musicArtist, musicCover, musicSrc,
     sentenceText, sentenceAuthor, sentenceImageUrl,
     articleTitle, articleAuthor, articleContent, articleImageUrl,
@@ -46,7 +49,6 @@ function updateSidebarActive() {
     items.forEach(item => item.classList.remove('active'));
 
     let activeId = null;
-    // 回收站面板优先判断（新增）
     const trashPanel = document.getElementById('trashPanel');
     if (trashPanel && trashPanel.style.display === 'block') {
         activeId = 'sidebarTrash';
@@ -55,7 +57,6 @@ function updateSidebarActive() {
     } else if (reportsPanel && reportsPanel.style.display === 'block') {
         activeId = 'sidebarReports';
     } else {
-        // 主内容 tab
         if (currentTab === 'published') activeId = 'sidebarPublished';
         else if (currentTab === 'scheduled') activeId = 'sidebarScheduled';
         else if (currentTab === 'draft') activeId = 'sidebarDraft';
@@ -71,18 +72,31 @@ function updateSidebarActive() {
 function showReportsPanel() {
     updateMainHeader('reports');
     setTrashStatsVisible(false);
-    // 隐藏其他所有主内容区域
+    hideAllContentAreas();
+    if (reportsPanel) reportsPanel.style.display = 'flex';
+    if (mainTabs) mainTabs.style.display = 'none';
+    loadReports();
+    updateSidebarActive();
+}
+
+function hideAllContentAreas() {
     const containers = ['postList', 'scheduledList', 'draftList'];
     containers.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
     if (commentsPanel) commentsPanel.style.display = 'none';
+    if (reportsPanel) reportsPanel.style.display = 'none';
     const trashPanelElem = document.getElementById('trashPanel');
     if (trashPanelElem) trashPanelElem.style.display = 'none';
-    if (reportsPanel) reportsPanel.style.display = 'block';
-    loadReports();
-    updateSidebarActive();
+}
+
+function showContentListOnly() {
+    hideAllContentAreas();
+    if (mainTabs) mainTabs.style.display = 'inline-flex';
+    const targetId = getContainerId(currentTab);
+    const targetEl = document.getElementById(targetId);
+    if (targetEl) targetEl.style.display = 'grid';
 }
 
 async function loadReports() {
@@ -96,7 +110,7 @@ async function loadReports() {
         if (!response.ok) throw new Error('获取举报列表失败');
         const reports = await response.json();
         if (!reports.length) {
-            reportsListDiv.innerHTML = '<div class="empty-message"> 暂无举报记录</div>';
+            reportsListDiv.innerHTML = '<div class="empty-message"><i class="ri-shield-check-line"></i> 暂无举报记录</div>';
             return;
         }
         let html = '';
@@ -107,11 +121,10 @@ async function loadReports() {
             const postDate = rep.date || '未知日期';
             const typeText = { music: '音乐', sentence: '句子', article: '文章' }[rep.type] || rep.type;
             const reason = escapeHtml(rep.reason || '无原因');
-            const reporterToken = rep.reporter_token ? rep.reporter_token.substring(0, 10) + '…' : '匿名';
             html += `
                 <div class="report-card" data-comment-id="${rep.comment_id}">
                     <div class="report-meta">
-                        <span class="report-reason">举报原因：${reason}</span>
+                        <span class="report-reason"><i class="ri-error-warning-line"></i> ${reason}</span>
                         <span class="report-time">${createdAt}</span>
                     </div>
                     <div class="report-comment">
@@ -187,15 +200,14 @@ function showLogin() {
 function showApp() {
     document.getElementById('loginPanel').style.display = 'none';
     document.getElementById('appContainer').style.display = 'block';
-    loadCurrentTab();      // 内部会调用 switchTab，进而隐藏
+    loadCurrentTab();
     updateSidebarActive();
-    // 确保显式隐藏一次（安全起见）
     setTrashStatsVisible(false);
 }
 
 function escapeHtml(str) {
     if (!str) return '';
-    return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
+    return str.replace(/[&<>]/g, m => ({ '&': '&lt;', '<': '&lt;', '>': '&gt;' }[m]));
 }
 
 function adjustTextareaHeight(textarea) {
@@ -248,7 +260,7 @@ async function apiRequest(endpoint, options = {}) {
         try {
             const errorBody = await response.json();
             if (errorBody && errorBody.message) errorMessage = errorBody.message;
-        } catch(e) {
+        } catch (e) {
             errorMessage = await response.text() || errorMessage;
         }
         const error = new Error(errorMessage);
@@ -310,7 +322,7 @@ async function loadPosts(append = false) {
         pg.hasMore = true;
         fullDataCache.published = [];
         const container = document.getElementById('postList');
-        if (container) container.innerHTML = '<div class="loading-spinner"><i class="ri-loader-4-line spin"></i> 加载中...</div>';
+        if (container) container.innerHTML = '<div class="empty-message"><i class="ri-loader-4-line spin"></i> 加载中...</div>';
     }
     if (!pg.hasMore && append) return;
     pg.loading = true;
@@ -412,7 +424,6 @@ function getContainerId(tab) {
 function renderTabData(tab) {
     const data = fullDataCache[tab];
     if (!Array.isArray(data)) {
-        console.warn(`renderTabData: ${tab} 数据不是数组`, data);
         const container = document.getElementById(getContainerId(tab));
         if (container) container.innerHTML = '<div class="empty-message">数据格式错误，请刷新重试</div>';
         return;
@@ -430,7 +441,7 @@ function renderTabData(tab) {
     if (!container) return;
 
     if (!displayData.length) {
-        container.innerHTML = '<div class="empty-message">暂无内容</div>';
+        container.innerHTML = '<div class="empty-message"><i class="ri-inbox-line"></i> 暂无内容</div>';
         return;
     }
 
@@ -492,7 +503,6 @@ function renderTabData(tab) {
     }
     container.innerHTML = html;
 
-    // 绑定菜单按钮事件
     bindCardMenuButtons();
 }
 
@@ -522,15 +532,23 @@ function switchTab(tab) {
     if (commentsPanel) commentsPanel.style.display = 'none';
     const trashPanelElem = document.getElementById('trashPanel');
     if (trashPanelElem) trashPanelElem.style.display = 'none';
+    if (mainTabs) mainTabs.style.display = 'inline-flex';
+
     // PC端选项卡样式
     document.querySelectorAll('.tabs button').forEach(btn => btn.classList.remove('active'));
     const pcBtn = document.getElementById(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
     if (pcBtn) pcBtn.classList.add('active');
+
     // 显示对应列表容器
     const containers = ['postList', 'scheduledList', 'draftList'];
-    containers.forEach(id => document.getElementById(id).style.display = 'none');
+    containers.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
     const targetId = getContainerId(tab);
-    document.getElementById(targetId).style.display = 'grid';
+    const targetEl = document.getElementById(targetId);
+    if (targetEl) targetEl.style.display = 'grid';
+
     // 加载数据
     if (tab === 'published') loadPosts(false);
     else if (tab === 'scheduled') loadScheduled(false);
@@ -792,7 +810,7 @@ async function handlePublish() {
     }
 }
 
-// ==================== 回收站模块（改为内嵌面板） ====================
+// ==================== 回收站模块 ====================
 async function addToTrash(originalType, originalId, dataPayload) {
     const token = getAuthToken();
     if (!token) return;
@@ -894,34 +912,34 @@ async function permanentDeleteTrashItem(trashId) {
     return true;
 }
 
-// 显示回收站面板（替代原来的模态框）
 async function showTrashPanel() {
-setTrashStatsVisible(true);
+    setTrashStatsVisible(true);
     updateMainHeader('trash');
-    // 隐藏其他所有主内容区域
-    const containers = ['postList', 'scheduledList', 'draftList'];
-    containers.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    });
-    if (commentsPanel) commentsPanel.style.display = 'none';
-    if (reportsPanel) reportsPanel.style.display = 'none';
+    hideAllContentAreas();
+    if (mainTabs) mainTabs.style.display = 'none';
     const trashPanelElem = document.getElementById('trashPanel');
-    if (trashPanelElem) trashPanelElem.style.display = 'block';
+    if (trashPanelElem) trashPanelElem.style.display = 'flex';
     updateSidebarActive();
     await loadTrashData();
 }
 
-// 加载回收站数据并渲染到面板内
 async function loadTrashData() {
     const container = document.getElementById('trashListPanel');
-    const countSpan = document.getElementById('trashPanelCount');
     if (!container) return;
     try {
         const items = await fetchTrashItems();
-        if (countSpan) countSpan.innerText = `${items.length} 项`;
+        if (trashPanelCountEl) {
+            trashPanelCountEl.innerText = `${items.length} 项`;
+        }
+        if (trashPanelCountLargeEl) {
+            trashPanelCountLargeEl.innerText = `${items.length} 项`;
+        }
+        if (sidebarTrashBadge) {
+            sidebarTrashBadge.style.display = items.length > 0 ? 'inline-block' : 'none';
+            sidebarTrashBadge.innerText = items.length;
+        }
         if (!items.length) {
-            container.innerHTML = '<div class="empty-message"> 回收站为空</div>';
+            container.innerHTML = '<div class="empty-message"><i class="ri-inbox-line"></i> 回收站为空</div>';
             return;
         }
         let html = '';
@@ -991,10 +1009,9 @@ async function loadTrashData() {
     }
 }
 
-// 兼容旧调用（避免报错）
 window.openTrashModal = showTrashPanel;
 
-// ==================== 劫持删除函数（移入回收站） ====================
+// ==================== 劫持删除函数 ====================
 window.deletePost = async function (date) {
     if (!confirm('删除后内容将移至回收站，可恢复。确定删除吗？')) return;
     try {
@@ -1075,7 +1092,6 @@ window.editPost = async function (date) {
             postData = response.content || response;
         }
         if (!postData.music && !postData.sentence && !postData.article) {
-            console.error('获取到的帖子数据格式异常', postData);
             alert('数据格式错误，无法编辑');
             return;
         }
@@ -1139,34 +1155,6 @@ window.editDraft = async function (id) {
     }
 };
 
-// ==================== 移动端悬浮按钮与菜单 ====================
-function setupMobileFab() {
-    const fabBtn = document.getElementById('mobileFabBtn');
-    const actionSheet = document.getElementById('actionSheet');
-    const actionOverlay = document.getElementById('actionSheetOverlay');
-    function closeSheet() {
-        actionSheet?.classList.remove('active');
-        actionOverlay?.classList.remove('active');
-    }
-    if (fabBtn) {
-        fabBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            closeSheet();
-            document.getElementById('newPostBtn').click();
-        });
-    }
-    if (actionOverlay) {
-        actionOverlay.addEventListener('click', closeSheet);
-    }
-    const mobileNewPostBtn = document.getElementById('mobileNewPost');
-    if (mobileNewPostBtn) {
-        mobileNewPostBtn.addEventListener('click', () => {
-            closeSheet();
-            document.getElementById('newPostBtn').click();
-        });
-    }
-}
-
 // ==================== 登录与初始化 ====================
 document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -1208,13 +1196,38 @@ document.addEventListener('DOMContentLoaded', () => {
     reportsListDiv = document.getElementById('reportsList');
     reportsHeaderBtn = document.getElementById('reportsHeaderBtn');
     sidebarReports = document.getElementById('sidebarReports');
+    mainTabs = document.getElementById('mainTabs');
+    trashPanelCountEl = document.getElementById('trashPanelCount');
+    trashPanelCountLargeEl = document.getElementById('trashPanelCountLarge');
+    sidebarTrashBadge = document.getElementById('sidebarTrashBadge');
 
     const togglePwd = document.getElementById('togglePassword');
     const pwdInput = document.getElementById('password');
-    trashStatsDiv = document.querySelector('.trash-stats');
-if (trashStatsDiv) {
-    setTrashStatsVisible(false);  // 初始隐藏
-}
+// 发布表单选项卡切换
+const publishTabBtns = document.querySelectorAll('.publish-tab-btn');
+const publishTabPanels = document.querySelectorAll('.publish-tab-panel');
+publishTabBtns.forEach(btn => {
+    btn.addEventListener('click', function() {
+        const targetTab = this.dataset.tab;
+        // 切换按钮状态
+        publishTabBtns.forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        // 切换面板
+        publishTabPanels.forEach(panel => {
+            panel.classList.toggle('active', panel.dataset.panel === targetTab);
+        });
+        // 调整新显示面板中的 textarea 高度
+        const activePanel = document.querySelector('.publish-tab-panel.active');
+        if (activePanel) {
+            const textareas = activePanel.querySelectorAll('.auto-resize-textarea');
+            textareas.forEach(ta => adjustTextareaHeight(ta));
+        }
+    });
+});
+    if (trashPanelCountEl) trashPanelCountEl.style.display = 'none';
+    if (trashPanelCountLargeEl) trashPanelCountLargeEl.style.display = 'none';
+    if (sidebarTrashBadge) sidebarTrashBadge.style.display = 'none';
+
     if (reportsHeaderBtn) reportsHeaderBtn.addEventListener('click', showReportsPanel);
     if (sidebarReports) {
         sidebarReports.addEventListener('click', () => {
@@ -1248,7 +1261,6 @@ if (trashStatsDiv) {
     modalTitle = document.getElementById('modalTitle');
     publishFields = document.getElementById('publishFields');
     modalOverlay = document.getElementById('modalOverlay');
-    closeModalBtn = document.getElementById('closeModalBtn');
     cancelFormBtn = document.getElementById('cancelFormBtn');
 
     bindAutoResizeForTextarea(sentenceText);
@@ -1283,6 +1295,13 @@ if (trashStatsDiv) {
         currentMode = 'normal';
         publishFields.style.display = 'block';
         modalTitle.innerHTML = '<i class="ri-add-circle-line"></i> 新建发布内容';
+        // 重置选项卡到音乐
+document.querySelectorAll('.publish-tab-btn').forEach(btn => btn.classList.remove('active'));
+const musicTabBtn = document.querySelector('.publish-tab-btn[data-tab="music"]');
+if (musicTabBtn) musicTabBtn.classList.add('active');
+document.querySelectorAll('.publish-tab-panel').forEach(panel => panel.classList.remove('active'));
+const musicPanel = document.querySelector('.publish-tab-panel[data-panel="music"]');
+if (musicPanel) musicPanel.classList.add('active');
         openModal();
     });
 
@@ -1292,14 +1311,11 @@ if (trashStatsDiv) {
         handlePublish();
     });
     cancelFormBtn?.addEventListener('click', closeModal);
-    closeModalBtn?.addEventListener('click', closeModal);
     modalOverlay?.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
 
-    // 回收站按钮绑定（改为显示面板）
+    // 回收站按钮
     const trashBtn = document.getElementById('trashBinBtn');
     if (trashBtn) trashBtn.addEventListener('click', showTrashPanel);
-    // 移除旧的模态框相关监听（原代码中的 openTrashModal 已被替换为 showTrashPanel）
-    // 侧边栏回收站按钮
     const sidebarTrashElem = document.getElementById('sidebarTrash');
     if (sidebarTrashElem) {
         sidebarTrashElem.addEventListener('click', () => {
@@ -1307,8 +1323,6 @@ if (trashStatsDiv) {
             showTrashPanel();
         });
     }
-
-    setupMobileFab();
 });
 
 // ==================== 侧边栏交互 ====================
@@ -1356,15 +1370,9 @@ const commentsHeaderBtn = document.getElementById('commentsHeaderBtn');
 function showCommentsPanel() {
     updateMainHeader('comments');
     setTrashStatsVisible(false);
-    const containers = ['postList', 'scheduledList', 'draftList'];
-    containers.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    });
-    if (reportsPanel) reportsPanel.style.display = 'none';
-    const trashPanelElem = document.getElementById('trashPanel');
-    if (trashPanelElem) trashPanelElem.style.display = 'none';
-    if (commentsPanel) commentsPanel.style.display = 'block';
+    hideAllContentAreas();
+    if (mainTabs) mainTabs.style.display = 'none';
+    if (commentsPanel) commentsPanel.style.display = 'flex';
     loadComments();
     updateSidebarActive();
 }
@@ -1436,9 +1444,10 @@ async function loadComments() {
         commentsListDiv.innerHTML = `<div class="empty-message"><i class="ri-error-warning-line"></i> 加载评论失败：${err.message}</div>`;
     }
 }
+
 // ==================== 卡片菜单弹窗逻辑 ====================
 let activeMenuPopup = null;
-let currentMenuCard = null; // 存储当前打开菜单的卡片信息 { type, identifier }
+let currentMenuCard = null;
 
 function closeCardMenu() {
     const popup = document.getElementById('cardMenuPopup');
@@ -1450,60 +1459,39 @@ function closeCardMenu() {
 }
 
 function showCardMenu(event, type, identifier) {
-    // 关闭已打开的菜单
     closeCardMenu();
-    
     const btn = event.currentTarget;
     const rect = btn.getBoundingClientRect();
     const popup = document.getElementById('cardMenuPopup');
     if (!popup) return;
-    
-    // 存储当前卡片信息
     currentMenuCard = { type, identifier };
-    
-    // 计算位置（默认在按钮下方左对齐）
     let top = rect.bottom + window.scrollY + 5;
     let left = rect.left + window.scrollX;
-    
-    // 边界检测，防止超出视口右侧
-    const popupWidth = 160; // 预估宽度
+    const popupWidth = 160;
     if (left + popupWidth > window.innerWidth) {
         left = rect.right + window.scrollX - popupWidth;
     }
-    // 边界检测，防止超出视口底部
     if (top + 150 > window.innerHeight + window.scrollY) {
         top = rect.top + window.scrollY - 150;
     }
-    
     popup.style.top = `${top}px`;
     popup.style.left = `${left}px`;
     popup.style.display = 'block';
     activeMenuPopup = popup;
-    
-    // 阻止事件冒泡，避免立即触发 document 关闭
     event.stopPropagation();
 }
 
 function handleCardMenuAction(action) {
     if (!currentMenuCard) return;
-    
     const { type, identifier } = currentMenuCard;
     if (action === 'edit') {
-        if (type === 'published') {
-            window.editPost(identifier);
-        } else if (type === 'scheduled') {
-            window.editScheduled(identifier);
-        } else if (type === 'draft') {
-            window.editDraft(identifier);
-        }
+        if (type === 'published') window.editPost(identifier);
+        else if (type === 'scheduled') window.editScheduled(identifier);
+        else if (type === 'draft') window.editDraft(identifier);
     } else if (action === 'delete') {
-        if (type === 'published') {
-            window.deletePost(identifier);
-        } else if (type === 'scheduled') {
-            window.deleteScheduled(identifier);
-        } else if (type === 'draft') {
-            window.deleteDraft(identifier);
-        }
+        if (type === 'published') window.deletePost(identifier);
+        else if (type === 'scheduled') window.deleteScheduled(identifier);
+        else if (type === 'draft') window.deleteDraft(identifier);
     }
     closeCardMenu();
 }
@@ -1511,7 +1499,6 @@ function handleCardMenuAction(action) {
 function bindCardMenuButtons() {
     const buttons = document.querySelectorAll('.card-menu-btn');
     buttons.forEach(btn => {
-        // 移除旧的监听器避免重复绑定
         btn.removeEventListener('click', btn._menuClickHandler);
         const handler = (e) => {
             e.stopPropagation();
@@ -1526,27 +1513,23 @@ function bindCardMenuButtons() {
     });
 }
 
-// 全局点击关闭菜单
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     const popup = document.getElementById('cardMenuPopup');
     if (popup && popup.style.display === 'block') {
-        // 如果点击的目标不是菜单内部，则关闭
         if (!popup.contains(e.target)) {
             closeCardMenu();
         }
     }
 });
 
-// 滚动时自动关闭菜单
-window.addEventListener('scroll', function() {
+window.addEventListener('scroll', function () {
     closeCardMenu();
 }, true);
 
-// 菜单项的点击事件（预先绑定，避免重复）
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const popup = document.getElementById('cardMenuPopup');
     if (popup) {
-        popup.addEventListener('click', function(e) {
+        popup.addEventListener('click', function (e) {
             const item = e.target.closest('.card-menu-item');
             if (item) {
                 const action = item.dataset.action;
@@ -1558,3 +1541,372 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// ==================== 移动端悬浮球: 长按拖拽 + 位置记忆 ====================
+(function initDraggableFab() {
+    const isMobile = () => window.innerWidth <= 768;
+    if (!isMobile()) return;
+
+    const fabContainer = document.getElementById('mobileFabContainer');
+    const fabBtn = document.getElementById('mobileFabBtn');
+    if (!fabContainer || !fabBtn) return;
+
+    let longPressTimer = null;
+    let isLongPressActive = false;
+    let dragActive = false;
+    let startX = 0,
+        startY = 0;
+    let initialLeft = 0,
+        initialTop = 0;
+    let fabWidth = 0,
+        fabHeight = 0;
+    let suppressClick = false;
+    let activeTouchId = null;
+    let moveThresholdPassed = false;
+
+    const STORAGE_KEY = 'read_fab_position';
+    const EDGE_MARGIN = 12;
+
+    function updateFabSize() {
+        const rect = fabContainer.getBoundingClientRect();
+        fabWidth = rect.width;
+        fabHeight = rect.height;
+    }
+
+    function clampPosition(left, top) {
+        const winW = window.innerWidth;
+        const winH = window.innerHeight;
+        const minLeft = EDGE_MARGIN;
+        const maxLeft = winW - fabWidth - EDGE_MARGIN;
+        const minTop = EDGE_MARGIN;
+        const maxTop = winH - fabHeight - EDGE_MARGIN;
+        return {
+            left: Math.min(maxLeft, Math.max(minLeft, left)),
+            top: Math.min(maxTop, Math.max(minTop, top))
+        };
+    }
+
+    function setFabPosition(left, top, saveToStorage = true) {
+        if (!fabContainer) return;
+        const clamped = clampPosition(left, top);
+        fabContainer.style.left = clamped.left + 'px';
+        fabContainer.style.top = clamped.top + 'px';
+        fabContainer.style.right = 'auto';
+        fabContainer.style.bottom = 'auto';
+        if (saveToStorage) {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({ left: clamped.left, top: clamped.top }));
+            } catch (e) {}
+        }
+    }
+
+    function loadStoredPosition() {
+        if (!fabContainer) return;
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+            try {
+                const pos = JSON.parse(stored);
+                if (typeof pos.left === 'number' && typeof pos.top === 'number') {
+                    updateFabSize();
+                    setFabPosition(pos.left, pos.top, false);
+                    return;
+                }
+            } catch (e) {}
+        }
+        fabContainer.style.left = '';
+        fabContainer.style.top = '';
+        fabContainer.style.right = '30px';
+        fabContainer.style.bottom = '60px';
+    }
+
+    function clearLongPressTimer() {
+        if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+    }
+
+    function endDrag() {
+        if (dragActive) {
+            if (fabContainer) {
+                const left = parseFloat(fabContainer.style.left);
+                const top = parseFloat(fabContainer.style.top);
+                if (!isNaN(left) && !isNaN(top)) {
+                    setFabPosition(left, top, true);
+                }
+            }
+            if (fabBtn) fabBtn.classList.remove('dragging-active');
+            fabContainer.classList.remove('dragging-global');
+        }
+        dragActive = false;
+        isLongPressActive = false;
+        moveThresholdPassed = false;
+        clearLongPressTimer();
+        if (isLongPressActiveTimerFlag || dragActive) {
+            suppressClick = true;
+            setTimeout(() => { suppressClick = false; }, 100);
+        }
+        window._longPressTriggered = false;
+        activeTouchId = null;
+    }
+
+    let isLongPressActiveTimerFlag = false;
+
+    function activateDragMode(currentTouch, currentLeft, currentTop) {
+        if (dragActive) return;
+        dragActive = true;
+        isLongPressActive = true;
+        isLongPressActiveTimerFlag = true;
+        if (fabBtn) fabBtn.classList.add('dragging-active');
+        fabContainer.classList.add('dragging-global');
+        document.body.style.userSelect = 'none';
+        document.body.style.webkitUserSelect = 'none';
+        startX = currentTouch.clientX;
+        startY = currentTouch.clientY;
+        initialLeft = currentLeft;
+        initialTop = currentTop;
+    }
+
+    function onDragMove(clientX, clientY) {
+        if (!dragActive) return false;
+        const dx = clientX - startX;
+        const dy = clientY - startY;
+        let newLeft = initialLeft + dx;
+        let newTop = initialTop + dy;
+        const clamped = clampPosition(newLeft, newTop);
+        fabContainer.style.left = clamped.left + 'px';
+        fabContainer.style.top = clamped.top + 'px';
+        fabContainer.style.right = 'auto';
+        fabContainer.style.bottom = 'auto';
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({ left: clamped.left, top: clamped.top }));
+        } catch (e) {}
+        return true;
+    }
+
+    function onTouchStart(e) {
+        if (!isMobile()) return;
+        if (activeTouchId !== null) return;
+        const touch = e.touches[0];
+        activeTouchId = touch.identifier;
+        clearLongPressTimer();
+        suppressClick = false;
+        isLongPressActive = false;
+        dragActive = false;
+        moveThresholdPassed = false;
+        isLongPressActiveTimerFlag = false;
+        if (fabBtn) fabBtn.classList.remove('dragging-active');
+        updateFabSize();
+        let currentLeft = 0,
+            currentTop = 0;
+        const computedStyle = window.getComputedStyle(fabContainer);
+        const leftVal = computedStyle.left;
+        const topVal = computedStyle.top;
+        if (leftVal && leftVal !== 'auto') {
+            currentLeft = parseFloat(leftVal);
+            currentTop = parseFloat(topVal);
+        } else {
+            const rect = fabContainer.getBoundingClientRect();
+            currentLeft = rect.left;
+            currentTop = rect.top;
+            setFabPosition(currentLeft, currentTop, false);
+        }
+        if (isNaN(currentLeft)) currentLeft = 0;
+        if (isNaN(currentTop)) currentTop = 0;
+        initialLeft = currentLeft;
+        initialTop = currentTop;
+        startX = touch.clientX;
+        startY = touch.clientY;
+        longPressTimer = setTimeout(() => {
+            if (!dragActive && !moveThresholdPassed) {
+                isLongPressActive = true;
+                isLongPressActiveTimerFlag = true;
+                if (navigator.vibrate) navigator.vibrate(30);
+                if (fabBtn) fabBtn.classList.add('dragging-active');
+                fabContainer.classList.add('dragging-global');
+                window._longPressTriggered = true;
+            }
+            longPressTimer = null;
+        }, 300);
+    }
+
+    function onTouchMove(e) {
+        if (!isMobile()) return;
+        let activeTouch = null;
+        for (let i = 0; i < e.touches.length; i++) {
+            if (e.touches[i].identifier === activeTouchId) {
+                activeTouch = e.touches[i];
+                break;
+            }
+        }
+        if (!activeTouch) return;
+        const deltaX = Math.abs(activeTouch.clientX - startX);
+        const deltaY = Math.abs(activeTouch.clientY - startY);
+        const moveDistance = Math.hypot(deltaX, deltaY);
+        if (!dragActive && !isLongPressActive && longPressTimer && moveDistance > 8) {
+            clearLongPressTimer();
+            moveThresholdPassed = true;
+            return;
+        }
+        if (!dragActive && (window._longPressTriggered || isLongPressActive) && moveDistance > 3) {
+            updateFabSize();
+            let curLeft = 0,
+                curTop = 0;
+            const leftStyle = fabContainer.style.left;
+            if (leftStyle && leftStyle !== 'auto') {
+                curLeft = parseFloat(leftStyle);
+                curTop = parseFloat(fabContainer.style.top);
+            } else {
+                const rect = fabContainer.getBoundingClientRect();
+                curLeft = rect.left;
+                curTop = rect.top;
+            }
+            if (isNaN(curLeft)) curLeft = initialLeft;
+            if (isNaN(curTop)) curTop = initialTop;
+            activateDragMode(activeTouch, curLeft, curTop);
+            startX = activeTouch.clientX;
+            startY = activeTouch.clientY;
+            initialLeft = curLeft;
+            initialTop = curTop;
+            e.preventDefault();
+            return;
+        }
+        if (dragActive) {
+            onDragMove(activeTouch.clientX, activeTouch.clientY);
+            e.preventDefault();
+        }
+    }
+
+    function onTouchEnd(e) {
+        if (!isMobile()) return;
+        const wasDragging = dragActive;
+        const wasLongPress = isLongPressActive;
+        endDrag();
+        document.body.style.userSelect = '';
+        document.body.style.webkitUserSelect = '';
+        if (!wasDragging && !wasLongPress && !suppressClick) {
+            if (fabContainer && document.getElementById('newPostBtn')) {
+                setTimeout(() => {
+                    const newPostBtn = document.getElementById('newPostBtn');
+                    if (newPostBtn) newPostBtn.click();
+                }, 10);
+            }
+        } else {
+            suppressClick = true;
+            setTimeout(() => { suppressClick = false; }, 100);
+        }
+        activeTouchId = null;
+        window._longPressTriggered = false;
+        isLongPressActiveTimerFlag = false;
+    }
+
+    function onTouchCancel(e) {
+        endDrag();
+        document.body.style.userSelect = '';
+        activeTouchId = null;
+        window._longPressTriggered = false;
+        isLongPressActiveTimerFlag = false;
+    }
+
+    function interceptFabClick(e) {
+        if (suppressClick) {
+            e.stopPropagation();
+            e.preventDefault();
+            suppressClick = false;
+            return false;
+        }
+        if (!dragActive && !isLongPressActive) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            return false;
+        }
+        return true;
+    }
+
+    function bindDragEvents() {
+        fabContainer.addEventListener('touchstart', onTouchStart, { passive: false });
+        fabContainer.addEventListener('touchmove', onTouchMove, { passive: false });
+        fabContainer.addEventListener('touchend', onTouchEnd);
+        fabContainer.addEventListener('touchcancel', onTouchCancel);
+        fabBtn.addEventListener('click', interceptFabClick, true);
+    }
+
+    function onWindowResize() {
+        if (!isMobile()) return;
+        updateFabSize();
+        let left = null,
+            top = null;
+        const leftStyle = fabContainer.style.left;
+        if (leftStyle && leftStyle !== 'auto') {
+            left = parseFloat(leftStyle);
+            top = parseFloat(fabContainer.style.top);
+        } else {
+            const rect = fabContainer.getBoundingClientRect();
+            left = rect.left;
+            top = rect.top;
+        }
+        if (!isNaN(left) && !isNaN(top)) {
+            const clamped = clampPosition(left, top);
+            if (clamped.left !== left || clamped.top !== top) {
+                setFabPosition(clamped.left, clamped.top, true);
+            }
+        } else {
+            loadStoredPosition();
+        }
+    }
+
+    function init() {
+        loadStoredPosition();
+        bindDragEvents();
+        window.addEventListener('resize', onWindowResize);
+        const observer = new MutationObserver(() => {
+            if (fabContainer && window.getComputedStyle(fabContainer).display !== 'none') {
+                updateFabSize();
+                loadStoredPosition();
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.getElementById('appContainer') || document.body, { attributes: true, childList: true, subtree: false });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+    window.resetFabToDefault = function () {
+        if (!fabContainer) return;
+        fabContainer.style.left = '';
+        fabContainer.style.top = '';
+        fabContainer.style.right = '30px';
+        fabContainer.style.bottom = '60px';
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+        } catch (e) {}
+    };
+})();
+
+// ==================== 内联标题更新 ====================
+(function () {
+    const headerTitleMap = {
+        published: '已发布内容',
+        scheduled: '定时任务',
+        draft: '草稿箱',
+        comments: '评论管理',
+        reports: '举报管理',
+        trash: '回收站'
+    };
+    window.updateMainHeader = function (moduleKey) {
+        const titleEl = document.getElementById('mainHeaderTitle');
+        if (titleEl && headerTitleMap[moduleKey]) {
+            titleEl.innerText = headerTitleMap[moduleKey];
+        }
+    };
+    window.closeSidebarGlobal = function () {
+        const sidebarEl = document.getElementById('sidebar');
+        const overlayEl = document.getElementById('sidebarOverlay');
+        if (sidebarEl) sidebarEl.classList.remove('open');
+        if (overlayEl) overlayEl.classList.remove('active');
+    };
+})();
