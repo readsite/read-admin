@@ -2,8 +2,8 @@
 const API_BASE = 'https://solitudenook.top';
 let currentTab = 'published';
 let reportsPanel, reportsListDiv, reportsHeaderBtn, sidebarReports;
-let trashPanelCountEl, trashPanelCountLargeEl, sidebarTrashBadge;
-
+let trashPanelCountEl, trashPanelCountLargeEl;
+let commentCountCache = {};
 // 分页状态管理
 let pagination = {
     published: { page: 1, limit: 20, total: 0, loading: false, hasMore: true },
@@ -310,6 +310,28 @@ async function deleteDraftById(id) {
 }
 
 // ==================== 数据加载函数 ====================
+async function loadCommentCounts() {
+    try {
+        const token = getAuthToken();
+        const response = await fetch(`${API_BASE}/api/comments/all`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) return;
+        const comments = await response.json();
+const counts = {};
+comments.forEach(c => {
+    const date = c.date;
+    const type = c.type;
+    if (date && type) {
+        const key = `${date}:${type}`;
+        counts[key] = (counts[key] || 0) + 1;
+    }
+});
+        commentCountCache = counts;
+    } catch (e) {
+        console.error('获取评论计数失败', e);
+    }
+}
 async function loadPosts(append = false) {
     const tab = 'published';
     const pg = pagination[tab];
@@ -334,6 +356,9 @@ async function loadPosts(append = false) {
             fullDataCache.published = items;
         }
         renderTabData(tab);
+if (!append) {
+    loadCommentCounts().then(() => renderTabData('published'));
+}
         if (pg.hasMore && append) {
             const container = document.getElementById('postList');
             if (container && !container.querySelector('.pagination-more')) {
@@ -374,6 +399,9 @@ async function loadScheduled(append = false) {
             fullDataCache.scheduled = items;
         }
         renderTabData(tab);
+if (!append) {
+    loadCommentCounts().then(() => renderTabData('published'));
+}
         if (pg.hasMore && append) {
             const container = document.getElementById('scheduledList');
             if (container && !container.querySelector('.pagination-more')) {
@@ -452,11 +480,11 @@ function renderTabData(tab) {
             return `
                 <div class="post-card">
                     <div class="post-card-header"><h3><i class="ri-calendar-event-line"></i> ${escapeHtml(post.date)}</h3></div>
-                    <div class="post-stats">
-                        <div class="stat-item"><i class="ri-headphone-line"></i> 收藏 ${musicStats.favorites} · 分享 ${musicStats.shares}</div>
-                        <div class="stat-item"><i class="ri-double-quotes-l"></i> 收藏 ${sentenceStats.favorites} · 分享 ${sentenceStats.shares}</div>
-                        <div class="stat-item"><i class="ri-article-line"></i> 收藏 ${articleStats.favorites} · 分享 ${articleStats.shares}</div>
-                    </div>
+<div class="post-stats">
+    <div class="stat-item"><i class="ri-headphone-line"></i> 收藏 ${musicStats.favorites} · 分享 ${musicStats.shares} · 评论 ${commentCountCache[post.date + ':music'] || 0}</div>
+    <div class="stat-item"><i class="ri-double-quotes-l"></i> 收藏 ${sentenceStats.favorites} · 分享 ${sentenceStats.shares} · 评论 ${commentCountCache[post.date + ':sentence'] || 0}</div>
+    <div class="stat-item"><i class="ri-article-line"></i> 收藏 ${articleStats.favorites} · 分享 ${articleStats.shares} · 评论 ${commentCountCache[post.date + ':article'] || 0}</div>
+</div>
                     <div class="post-actions">
                         <button class="card-menu-btn" data-type="published" data-identifier="${escapeHtml(post.date)}"><i class="ri-more-fill"></i></button>
                     </div>
@@ -643,6 +671,13 @@ function fillFormWithData(data, publishTypeVal = 'immediate') {
 
 function collectFormData() {
     const publishType = document.querySelector('input[name="publishType"]:checked').value;
+    
+    // 处理音频链接：如果只输入了数字ID，自动补全为完整链接
+    let srcValue = musicSrc.value.trim();
+    if (/^\d+$/.test(srcValue)) {
+        srcValue = `http://music.163.com/song/media/outer/url?id=${srcValue}.mp3`;
+    }
+    
     return {
         date: dateInput.value,
         publishType: publishType,
@@ -650,7 +685,7 @@ function collectFormData() {
             title: musicTitle.value,
             artist: musicArtist.value,
             cover: musicCover.value,
-            src: musicSrc.value
+            src: srcValue
         },
         sentence: {
             text: sentenceText.value,
@@ -925,10 +960,6 @@ async function loadTrashData() {
         if (trashPanelCountLargeEl) {
             trashPanelCountLargeEl.innerText = `${items.length} 项`;
         }
-        if (sidebarTrashBadge) {
-            sidebarTrashBadge.style.display = items.length > 0 ? 'inline-block' : 'none';
-            sidebarTrashBadge.innerText = items.length;
-        }
         if (!items.length) {
             container.innerHTML = '<div class="empty-message"><i class="ri-inbox-line"></i> 回收站为空</div>';
             return;
@@ -940,7 +971,7 @@ async function loadTrashData() {
             if (item.type === 'post') {
                 preview = `日期: ${item.data.date} | 音乐: ${item.data.music?.title || '无'} | 句子: ${(item.data.sentence?.text || '').substring(0, 50)}`;
             } else if (item.type === 'scheduled') {
-                preview = `定时发布: ${item.data.date} | 内容预览: ${item.data.content?.music?.title || '无音乐'}`;
+                preview = `内容预览: ${item.data.content?.music?.title || '无音乐'}`;
             } else if (item.type === 'draft') {
                 preview = `草稿日期: ${item.data.date} | 标题: ${item.data.music?.title || '无'}`;
             }
@@ -948,7 +979,6 @@ async function loadTrashData() {
                 <div class="trash-card" data-id="${item.id}">
                     <div class="trash-card-header">
                         <div class="trash-type-badge"><i class="ri-delete-bin-line"></i> ${typeLabel}</div>
-                        <div class="trash-original-id">ID: ${escapeHtml(String(item.originalId || '—'))}</div>
                     </div>
                     <div class="trash-preview">${escapeHtml(preview)}</div>
                     <div class="trash-actions">
@@ -1189,8 +1219,6 @@ document.addEventListener('DOMContentLoaded', () => {
     sidebarReports = document.getElementById('sidebarReports');
     trashPanelCountEl = document.getElementById('trashPanelCount');
     trashPanelCountLargeEl = document.getElementById('trashPanelCountLarge');
-    sidebarTrashBadge = document.getElementById('sidebarTrashBadge');
-
     const togglePwd = document.getElementById('togglePassword');
     const pwdInput = document.getElementById('password');
 // 发布表单选项卡切换
@@ -1216,7 +1244,6 @@ publishTabBtns.forEach(btn => {
 });
     if (trashPanelCountEl) trashPanelCountEl.style.display = 'none';
     if (trashPanelCountLargeEl) trashPanelCountLargeEl.style.display = 'none';
-    if (sidebarTrashBadge) sidebarTrashBadge.style.display = 'none';
 
     if (reportsHeaderBtn) reportsHeaderBtn.addEventListener('click', showReportsPanel);
     if (sidebarReports) {
@@ -1252,7 +1279,12 @@ publishTabBtns.forEach(btn => {
     publishFields = document.getElementById('publishFields');
     modalOverlay = document.getElementById('modalOverlay');
     cancelFormBtn = document.getElementById('cancelFormBtn');
-
+    musicSrc.addEventListener('blur', function() {
+    const val = this.value.trim();
+    if (/^\d+$/.test(val)) {
+        this.value = `http://music.163.com/song/media/outer/url?id=${val}.mp3`;
+    }
+});
     bindAutoResizeForTextarea(sentenceText);
     bindAutoResizeForTextarea(articleContent);
 
