@@ -61,32 +61,38 @@
                 </div>
                 <button class="sidebar-close" id="sidebarCloseBtn"><i class="ri-close-line"></i></button>
             </div>
+                            <!-- 桌面端折叠按钮 -->
+                <button class="sidebar-collapse-toggle" id="collapseSidebarBtn" title="折叠侧边栏">
+                    <i class="ri-sidebar-fold-line"></i>
+                    <span>收起</span>
+                </button>
             <nav class="sidebar-nav">
                 <div class="sidebar-section-title">内容管理</div>
-                <div class="sidebar-item active" id="sidebarPublished">
-                    <i class="ri-checkbox-circle-line"></i> 已发布内容
+                <div class="sidebar-item" id="sidebarPublished" title="已发布内容">
+                    <i class="ri-checkbox-circle-line"></i> <span>已发布内容</span>
                 </div>
-                <div class="sidebar-item" id="sidebarScheduled">
-                    <i class="ri-time-line"></i> 定时任务
+                <div class="sidebar-item" id="sidebarScheduled" title="定时任务">
+                    <i class="ri-time-line"></i> <span>定时任务</span>
                 </div>
-                <div class="sidebar-item" id="sidebarDraft">
-                    <i class="ri-draft-line"></i> 草稿箱
+                <div class="sidebar-item" id="sidebarDraft" title="草稿箱">
+                    <i class="ri-draft-line"></i> <span>草稿箱</span>
                 </div>
                 <div class="sidebar-section-title">运营管理</div>
-                <div class="sidebar-item" id="sidebarComments">
-                    <i class="ri-chat-3-line"></i> 评论管理
+                <div class="sidebar-item" id="sidebarComments" title="评论管理">
+                    <i class="ri-chat-3-line"></i> <span>评论管理</span>
                 </div>
-                <div class="sidebar-item" id="sidebarReports">
-                    <i class="ri-alert-line"></i> 举报管理
+                <div class="sidebar-item" id="sidebarReports" title="举报管理">
+                    <i class="ri-alert-line"></i> <span>举报管理</span>
                 </div>
-                <div class="sidebar-item" id="sidebarTrash">
-                    <i class="ri-delete-bin-7-line"></i> 回收站
+                <div class="sidebar-item" id="sidebarTrash" title="回收站">
+                    <i class="ri-delete-bin-7-line"></i> <span>回收站</span>
                     <span class="sidebar-badge" id="sidebarTrashBadge" style="display:none;">0</span>
                 </div>
             </nav>
             <div class="sidebar-footer">
-                <div class="sidebar-item" id="sidebarLogout">
-                    <i class="ri-logout-box-line"></i> 退出登录
+
+                <div class="sidebar-item" id="sidebarLogout" title="退出登录">
+                    <i class="ri-logout-box-line"></i> <span>退出登录</span>
                 </div>
             </div>
         </aside>
@@ -116,61 +122,31 @@
 
             <!-- 主内容区 -->
             <main class="main-content">
-                <!-- 标签选项卡 -->
-                <div class="tabs" id="mainTabs">
-                    <button id="tabPublished" class="active">
-                        <i class="ri-checkbox-circle-line"></i> 已发布
-                    </button>
-                    <button id="tabScheduled">
-                        <i class="ri-time-line"></i> 定时任务
-                    </button>
-                    <button id="tabDraft">
-                        <i class="ri-draft-line"></i> 草稿
-                    </button>
-                </div>
-
                 <!-- 内容列表容器 -->
                 <div id="postList" class="post-list"></div>
                 <div id="scheduledList" class="post-list" style="display: none;"></div>
                 <div id="draftList" class="post-list" style="display: none;"></div>
 
                 <!-- 评论管理面板 -->
-                <div id="commentsPanel" class="content-panel" style="display: none;">
-                    <div class="panel-header">
-                        <h2><i class="ri-chat-3-line"></i> 评论管理</h2>
-                    </div>
-                    <div id="commentsList" class="panel-list">
-                        <div class="empty-message">加载中...</div>
-                    </div>
-                </div>
-
+<div id="commentsPanel" class="content-panel" style="display: none;">
+    <div id="commentsList" class="panel-list">
+        <div class="empty-message">加载中...</div>
+    </div>
+</div>
                 <!-- 举报管理面板 -->
-                <div id="reportsPanel" class="content-panel" style="display: none;">
-                    <div class="panel-header">
-                        <h2><i class="ri-alert-line"></i> 举报管理</h2>
-                    </div>
-                    <div id="reportsList" class="panel-list">
-                        <div class="empty-message">加载中...</div>
-                    </div>
-                </div>
-
+<div id="reportsPanel" class="content-panel" style="display: none;">
+    <div id="reportsList" class="panel-list">
+        <div class="empty-message">加载中...</div>
+    </div>
+</div>
                 <!-- 回收站面板 -->
                 <div id="trashPanel" class="content-panel" style="display: none;">
-                    <div class="panel-header">
-                        <h2><i class="ri-delete-bin-7-line"></i> 回收站</h2>
-                        <span class="panel-count" id="trashPanelCountLarge">0 项</span>
-                    </div>
                     <div id="trashListPanel" class="panel-list trash-list">
                         <div class="empty-message">加载中...</div>
                     </div>
                 </div>
             </main>
         </div>
-    </div>
-
-    <!-- 移动端右下角悬浮按钮 -->
-    <div class="fab-container" id="mobileFabContainer">
-        <div class="fab-btn" id="mobileFabBtn"><i class="ri-add-line"></i></div>
     </div>
 </div>
 
