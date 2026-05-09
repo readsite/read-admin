@@ -342,17 +342,7 @@ body {
     border-radius: 0 4px 4px 0;
 }
 
-.sidebar-badge {
-    margin-left: auto;
-    background: var(--danger);
-    color: #fff;
-    font-size: 0.7rem;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-weight: 600;
-    min-width: 20px;
-    text-align: center;
-}
+
 
 .sidebar-footer {
     border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -610,7 +600,7 @@ body {
 .post-card {
     background: var(--card-bg);
     border-radius: var(--radius-lg);
-    padding: 18px 20px;
+    padding: 10px;
     box-shadow: var(--card-shadow);
     transition: all var(--transition);
     display: flex;
@@ -627,7 +617,6 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
     flex-wrap: wrap;
     gap: 8px;
 }
@@ -648,7 +637,7 @@ body {
 .post-stats {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 5px;
     margin: 10px 0 14px 0;
     border-top: 1px solid #f1f5f9;
     padding-top: 12px;
@@ -684,7 +673,6 @@ body {
     gap: 4px;
     justify-content: flex-end;
     margin-top: auto;
-    padding-top: 10px;
 }
 
 .card-menu-btn {
@@ -693,14 +681,11 @@ body {
     font-size: 1.3rem;
     cursor: pointer;
     color: #94a3b8;
-    padding: 6px 10px;
     line-height: 1;
-    border-radius: 8px;
     transition: all 0.2s;
 }
 
 .card-menu-btn:hover {
-    background: #f1f5f9;
     color: #475569;
 }
 
@@ -1422,15 +1407,6 @@ body {
         margin: 0;
     }
     
-    .sidebar.collapsed .sidebar-badge {
-        position: absolute;
-        top: 2px;
-        right: 8px;
-        transform: translateX(50%);
-        font-size: 0.6rem;
-        padding: 1px 6px;
-    }
-    
     .sidebar.collapsed .sidebar-collapse-toggle {
         justify-content: center;
         padding: 10px 0;
@@ -1447,6 +1423,11 @@ body {
 }
 /* ==================== 响应式 ==================== */
 @media (max-width: 768px) {
+        .panel-list {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 5px;
+    }
       .sidebar-collapse-toggle {
         display: none;
     }
@@ -1505,7 +1486,7 @@ body {
     }
 
     .post-card {
-        padding: 14px;
+        padding: 10px;
     }
 
     .stat-item {
