@@ -16,8 +16,11 @@
 <!-- 登录面板 -->
 <div id="loginPanel" class="login-panel">
     <div class="login-card">
-        <h2>Read. 管理后台</h2>
-        <p class="login-sub">内容发布管理中心</p>
+        <div class="login-brand">
+            <div class="login-logo"><i class="ri-book-open-line"></i></div>
+            <h2>Read. 管理后台</h2>
+            <p class="login-sub">内容发布管理中心</p>
+        </div>
         <form id="loginForm">
             <div class="login-input-group">
                 <i class="ri-user-3-line"></i>
@@ -28,10 +31,14 @@
                 <input type="password" id="password" placeholder="密码" autocomplete="off">
                 <i class="ri-eye-off-line toggle-password" id="togglePassword"></i>
             </div>
-            <button type="submit" class="login-btn">登录系统</button>
+            <button type="submit" class="login-btn">
+                <i class="ri-login-box-line"></i> 登录系统
+            </button>
         </form>
     </div>
 </div>
+
+<!-- 卡片菜单弹窗 -->
 <div id="cardMenuPopup" class="card-menu-popup" style="display: none;">
     <div class="card-menu-item" data-action="edit">
         <i class="ri-edit-line"></i> 编辑
@@ -43,581 +50,211 @@
 
 <!-- 主应用容器 -->
 <div id="appContainer" class="app-container" style="display: none;">
-    <div class="container">
-        <div class="header">
-            <button class="mobile-menu-btn" id="mobileMenuBtn"><i class="ri-menu-line"></i></button>
-<div class="title-wrapper">
-    <h1 id="mainHeaderTitle">已发布内容</h1>
-    <div class="trash-stats">
-        <span id="trashPanelCount">0 项</span>
+    <div class="app-layout">
+        <!-- 侧边栏 -->
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-brand">
+                <div class="sidebar-logo"><i class="ri-book-open-line"></i></div>
+                <div class="sidebar-brand-text">
+                    <span class="sidebar-brand-name">Read.</span>
+                    <span class="sidebar-brand-sub">管理后台</span>
+                </div>
+                <button class="sidebar-close" id="sidebarCloseBtn"><i class="ri-close-line"></i></button>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="sidebar-section-title">内容管理</div>
+                <div class="sidebar-item active" id="sidebarPublished">
+                    <i class="ri-checkbox-circle-line"></i> 已发布内容
+                </div>
+                <div class="sidebar-item" id="sidebarScheduled">
+                    <i class="ri-time-line"></i> 定时任务
+                </div>
+                <div class="sidebar-item" id="sidebarDraft">
+                    <i class="ri-draft-line"></i> 草稿箱
+                </div>
+                <div class="sidebar-section-title">运营管理</div>
+                <div class="sidebar-item" id="sidebarComments">
+                    <i class="ri-chat-3-line"></i> 评论管理
+                </div>
+                <div class="sidebar-item" id="sidebarReports">
+                    <i class="ri-alert-line"></i> 举报管理
+                </div>
+                <div class="sidebar-item" id="sidebarTrash">
+                    <i class="ri-delete-bin-7-line"></i> 回收站
+                    <span class="sidebar-badge" id="sidebarTrashBadge" style="display:none;">0</span>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="sidebar-item" id="sidebarLogout">
+                    <i class="ri-logout-box-line"></i> 退出登录
+                </div>
+            </div>
+        </aside>
+
+        <!-- 侧边栏遮罩（移动端） -->
+        <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+        <!-- 右侧主区域 -->
+        <div class="main-wrapper">
+            <!-- 顶部栏 -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="topbar-menu-btn" id="mobileMenuBtn">
+                        <i class="ri-menu-line"></i>
+                    </button>
+                    <div class="topbar-title-group">
+                        <h1 class="topbar-title" id="mainHeaderTitle">已发布内容</h1>
+                        <span class="topbar-badge" id="trashPanelCount" style="display:none;">0 项</span>
+                    </div>
+                </div>
+                <div class="topbar-actions">
+                    <button class="topbar-btn topbar-btn-primary" id="newPostBtn">
+                        <i class="ri-add-line"></i> <span class="topbar-btn-text">新建发布</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- 主内容区 -->
+            <main class="main-content">
+                <!-- 标签选项卡 -->
+                <div class="tabs" id="mainTabs">
+                    <button id="tabPublished" class="active">
+                        <i class="ri-checkbox-circle-line"></i> 已发布
+                    </button>
+                    <button id="tabScheduled">
+                        <i class="ri-time-line"></i> 定时任务
+                    </button>
+                    <button id="tabDraft">
+                        <i class="ri-draft-line"></i> 草稿
+                    </button>
+                </div>
+
+                <!-- 内容列表容器 -->
+                <div id="postList" class="post-list"></div>
+                <div id="scheduledList" class="post-list" style="display: none;"></div>
+                <div id="draftList" class="post-list" style="display: none;"></div>
+
+                <!-- 评论管理面板 -->
+                <div id="commentsPanel" class="content-panel" style="display: none;">
+                    <div class="panel-header">
+                        <h2><i class="ri-chat-3-line"></i> 评论管理</h2>
+                    </div>
+                    <div id="commentsList" class="panel-list">
+                        <div class="empty-message">加载中...</div>
+                    </div>
+                </div>
+
+                <!-- 举报管理面板 -->
+                <div id="reportsPanel" class="content-panel" style="display: none;">
+                    <div class="panel-header">
+                        <h2><i class="ri-alert-line"></i> 举报管理</h2>
+                    </div>
+                    <div id="reportsList" class="panel-list">
+                        <div class="empty-message">加载中...</div>
+                    </div>
+                </div>
+
+                <!-- 回收站面板 -->
+                <div id="trashPanel" class="content-panel" style="display: none;">
+                    <div class="panel-header">
+                        <h2><i class="ri-delete-bin-7-line"></i> 回收站</h2>
+                        <span class="panel-count" id="trashPanelCountLarge">0 项</span>
+                    </div>
+                    <div id="trashListPanel" class="panel-list trash-list">
+                        <div class="empty-message">加载中...</div>
+                    </div>
+                </div>
+            </main>
+        </div>
     </div>
-</div>
-            <div class="header-buttons">
-                <button class="btn" id="newPostBtn"><i class="ri-add-line"></i> 新建发布</button>
-                <button class="btn" id="trashBinBtn" style="background:#475569;"><i class="ri-delete-bin-7-line"></i> 回收站</button>
-                <button class="btn" id="reportsHeaderBtn" style="background:#ef4444;"><i class="ri-alert-line"></i> 举报管理</button>
-                <button class="btn" id="commentsHeaderBtn" style="background:#10b981;"><i class="ri-chat-3-line"></i> 评论管理</button>
-                <button class="btn logout-btn" id="logoutBtn"><i class="ri-logout-box-line"></i> 退出</button>
-            </div>
-        </div>
 
-        <!-- PC端顶部选项卡 -->
-        <div class="tabs">
-            <button id="tabPublished" class="active"><i class="ri-checkbox-circle-line"></i> 已发布</button>
-            <button id="tabScheduled"><i class="ri-time-line"></i> 定时任务</button>
-            <button id="tabDraft"><i class="ri-draft-line"></i> 草稿</button>
-        </div>
-
-        <!-- 已发布列表容器 -->
-        <div id="postList" class="post-list"></div>
-        <div id="scheduledList" class="post-list" style="display: none;"></div>
-        <div id="draftList" class="post-list" style="display: none;"></div>
-        
-        <!-- 评论管理面板 -->
-        <div id="commentsPanel" class="comments-panel" style="display: none;">
-            <div id="commentsList" class="comments-list">
-                <div class="empty-message">加载中...</div>
-            </div>
-        </div>
-
-        <!-- 举报管理面板 -->
-        <div id="reportsPanel" class="comments-panel" style="display: none;">
-            <div id="reportsList" class="comments-list">
-                <div class="empty-message">加载中...</div>
-            </div>
-        </div>
-
-        <div id="trashPanel" class="comments-panel trash-panel" style="display: none;">
-
-            <div id="trashListPanel" class="trash-list">
-                <div class="empty-message">加载中...</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 移动端右下角悬浮新增按钮 (长按拖拽) -->
+    <!-- 移动端右下角悬浮按钮 -->
     <div class="fab-container" id="mobileFabContainer">
         <div class="fab-btn" id="mobileFabBtn"><i class="ri-add-line"></i></div>
     </div>
 </div>
 
-<!-- 侧边栏 (移动端专属) -->
-<div id="sidebarOverlay" class="sidebar-overlay"></div>
-<div id="sidebar" class="sidebar">
-    <div class="sidebar-header">
-        <h3> Read.管理</h3>
-        <button class="sidebar-close" id="sidebarCloseBtn"><i class="ri-close-line"></i></button>
-    </div>
-    <div class="sidebar-menu">
-        <div class="sidebar-item" id="sidebarPublished">
-            <i class="ri-rocket-line"></i> 已发布内容
-        </div>
-        <div class="sidebar-item" id="sidebarScheduled">
-            <i class="ri-time-line"></i> 定时任务
-        </div>
-        <div class="sidebar-item" id="sidebarDraft">
-            <i class="ri-draft-line"></i> 草稿箱
-        </div>
-        <div class="sidebar-item" id="sidebarComments">
-            <i class="ri-chat-3-line"></i> 评论管理
-        </div>
-        <div class="sidebar-item" id="sidebarReports">
-            <i class="ri-alert-line"></i> 举报管理
-        </div>
-        <div class="sidebar-item" id="sidebarTrash">
-            <i class="ri-delete-bin-7-line"></i> 回收站
-        </div>
-    </div>
-    <div class="sidebar-footer">
-        <div class="sidebar-item" id="sidebarLogout">
-            <i class="ri-logout-box-line"></i> 退出登录
-        </div>
-    </div>
-</div>
-
-<!-- 全屏模态窗 (新建/编辑表单) -->
+<!-- 全屏模态窗（新建/编辑表单） -->
 <div id="modalOverlay" class="modal-overlay">
     <div class="modal-container">
         <div class="modal-header">
             <h2 id="modalTitle"><i class="ri-edit-box-line"></i> 新建发布</h2>
-            <button class="modal-close" id="closeModalBtn"><i class="ri-close-line"></i></button>
         </div>
         <div class="modal-body-scroll">
             <form id="postForm">
-                <div id="publishFields">
-                    <div class="form-group"><label><i class="ri-calendar-todo-line"></i> 生效日期</label><input type="date" id="date" required></div>
-                    <div class="type-selector">
-                        <label><input type="radio" name="publishType" value="immediate"> <i class="ri-flashlight-line"></i> 立即发布</label>
-                        <label><input type="radio" name="publishType" value="scheduled" checked> <i class="ri-alarm-line"></i> 定时发布</label>
-                    </div>
-                    <div class="section-title"><i class="ri-music-2-line"></i> 音乐模块</div>
-                    <div class="form-group"><label>标题</label><input type="text" id="musicTitle" placeholder="如：Like A Star"></div>
-                    <div class="form-group"><label>艺术家</label><input type="text" id="musicArtist" placeholder="Youngso Kim"></div>
-                    <div class="form-group"><label>封面URL</label><input type="url" id="musicCover" placeholder="https://..."></div>
-                    <div class="form-group"><label>音频URL</label><input type="url" id="musicSrc" placeholder="音频链接"></div>
-                    <div class="section-title"><i class="ri-double-quotes-L"></i> 句子摘录</div>
-                    <div class="form-group"><label>内容</label><textarea id="sentenceText" class="auto-resize-textarea"></textarea></div>
-                    <div class="form-group"><label>作者</label><input type="text" id="sentenceAuthor" placeholder="苏轼"></div>
-                    <div class="form-group"><label>配图URL</label><input type="url" id="sentenceImageUrl"><div class="upload-preview" id="sentenceImagePreviewContainer" style="display:none"><img id="sentenceImagePreview"></div></div>
-                    <div class="section-title"><i class="ri-article-line"></i> 深度文章</div>
-                    <div class="form-group"><label>标题</label><input type="text" id="articleTitle" placeholder="我应该怎样活着"></div>
-                    <div class="form-group"><label>作者</label><input type="text" id="articleAuthor" placeholder="刘金增 等"></div>
-                    <div class="form-group"><label>正文</label><textarea id="articleContent" class="auto-resize-textarea"></textarea></div>
-                    <div class="form-group"><label>配图URL</label><input type="url" id="articleImageUrl"><div class="upload-preview" id="imagePreviewContainer" style="display:none"><img id="imagePreview"></div></div>
-                </div>
+<div id="publishFields">
+    <!-- 日期和发布方式 (保持不变，置于选项卡上方) -->
+    <div class="form-row">
+        <div class="form-group form-group-date">
+            <label><i class="ri-calendar-todo-line"></i> 生效日期</label>
+            <input type="date" id="date" required>
+        </div>
+        <div class="form-group form-group-type">
+            <label><i class="ri-send-plane-line"></i> 发布方式</label>
+            <div class="type-selector">
+                <label class="type-option"><input type="radio" name="publishType" value="immediate"> <i class="ri-flashlight-line"></i> 立即发布</label>
+                <label class="type-option"><input type="radio" name="publishType" value="scheduled" checked> <i class="ri-alarm-line"></i> 定时发布</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- 选项卡导航 -->
+    <div class="publish-tabs">
+        <button type="button" class="publish-tab-btn active" data-tab="music">
+            <i class="ri-music-2-line"></i> 音乐
+        </button>
+        <button type="button" class="publish-tab-btn" data-tab="sentence">
+            <i class="ri-double-quotes-l"></i> 句子
+        </button>
+        <button type="button" class="publish-tab-btn" data-tab="article">
+            <i class="ri-article-line"></i> 文章
+        </button>
+    </div>
+
+    <!-- 音乐面板 -->
+    <div class="publish-tab-panel active" data-panel="music">
+        <div class="section-title"><i class="ri-music-2-line"></i> 音乐模块</div>
+        <div class="form-row form-row-2col">
+            <div class="form-group"><label>标题</label><input type="text" id="musicTitle" placeholder="如：Like A Star"></div>
+            <div class="form-group"><label>艺术家</label><input type="text" id="musicArtist" placeholder="Youngso Kim"></div>
+        </div>
+        <div class="form-row form-row-2col">
+            <div class="form-group"><label>封面URL</label><input type="url" id="musicCover" placeholder="https://..."></div>
+            <div class="form-group"><label>音频URL</label><input type="url" id="musicSrc" placeholder="音频链接"></div>
+        </div>
+    </div>
+
+    <!-- 句子面板 -->
+    <div class="publish-tab-panel" data-panel="sentence">
+        <div class="section-title"><i class="ri-double-quotes-l"></i> 句子摘录</div>
+        <div class="form-group"><label>内容</label><textarea id="sentenceText" class="auto-resize-textarea" placeholder="输入句子内容..."></textarea></div>
+        <div class="form-row form-row-2col">
+            <div class="form-group"><label>作者</label><input type="text" id="sentenceAuthor" placeholder="苏轼"></div>
+            <div class="form-group"><label>配图URL</label><input type="url" id="sentenceImageUrl" placeholder="https://..."><div class="upload-preview" id="sentenceImagePreviewContainer" style="display:none"><img id="sentenceImagePreview"></div></div>
+        </div>
+    </div>
+
+    <!-- 文章面板 -->
+    <div class="publish-tab-panel" data-panel="article">
+        <div class="section-title"><i class="ri-article-line"></i> 深度文章</div>
+        <div class="form-row form-row-2col">
+            <div class="form-group"><label>标题</label><input type="text" id="articleTitle" placeholder="我应该怎样活着"></div>
+            <div class="form-group"><label>作者</label><input type="text" id="articleAuthor" placeholder="刘金增 等"></div>
+        </div>
+        <div class="form-group"><label>正文</label><textarea id="articleContent" class="auto-resize-textarea" placeholder="输入文章正文..."></textarea></div>
+        <div class="form-group"><label>配图URL</label><input type="url" id="articleImageUrl" placeholder="https://..."><div class="upload-preview" id="imagePreviewContainer" style="display:none"><img id="imagePreview"></div></div>
+    </div>
+</div>
             </form>
         </div>
         <div class="form-actions">
             <button type="button" class="btn cancel" id="cancelFormBtn"><i class="ri-close-line"></i> 取消</button>
-            <button type="button" class="btn" id="saveDraftBtn" style="background:#f59e0b;"><i class="ri-save-line"></i> 保存草稿</button>
-            <button type="button" class="btn" id="submitFormBtn"><i class="ri-save-3-line"></i> 保存发布</button>
+            <button type="button" class="btn btn-draft" id="saveDraftBtn"><i class="ri-save-line"></i> 保存草稿</button>
+            <button type="button" class="btn btn-primary" id="submitFormBtn"><i class="ri-save-3-line"></i> 发布</button>
         </div>
     </div>
 </div>
 
 <script src="js/script.js"></script>
-<script>
-    // ==================== 移动端悬浮球: 长按拖拽 + 位置记忆 ====================
-    (function initDraggableFab() {
-        // 仅在移动端生效 (宽度≤768)
-        const isMobile = () => window.innerWidth <= 768;
-        if (!isMobile()) return;
-
-        const fabContainer = document.getElementById('mobileFabContainer');
-        const fabBtn = document.getElementById('mobileFabBtn');
-        if (!fabContainer || !fabBtn) return;
-
-        // 拖拽状态变量
-        let longPressTimer = null;
-        let isLongPressActive = false;      // 长按已触发(未松手)
-        let dragActive = false;              // 拖拽移动模式中
-        let startX = 0, startY = 0;
-        let initialLeft = 0, initialTop = 0;
-        let fabWidth = 0, fabHeight = 0;
-        let suppressClick = false;           // 阻止click事件(长按/拖拽后不触发新增)
-        let activeTouchId = null;             // 跟踪当前触摸点ID
-        let moveThresholdPassed = false;      // 移动超过阈值后取消长按定时器
-        
-        // 存储Key
-        const STORAGE_KEY = 'read_fab_position';
-        const EDGE_MARGIN = 12;               // 距离屏幕边缘间距(px)
-        
-        // 获取按钮当前实际尺寸(实时)
-        function updateFabSize() {
-            const rect = fabContainer.getBoundingClientRect();
-            fabWidth = rect.width;
-            fabHeight = rect.height;
-        }
-        
-        // 边界限制 (left, top 基于视口)
-        function clampPosition(left, top) {
-            const winW = window.innerWidth;
-            const winH = window.innerHeight;
-            const minLeft = EDGE_MARGIN;
-            const maxLeft = winW - fabWidth - EDGE_MARGIN;
-            const minTop = EDGE_MARGIN;
-            const maxTop = winH - fabHeight - EDGE_MARGIN;
-            return {
-                left: Math.min(maxLeft, Math.max(minLeft, left)),
-                top: Math.min(maxTop, Math.max(minTop, top))
-            };
-        }
-        
-        // 应用位置 (将容器设置为 left/top 定位, 清除 right/bottom)
-        function setFabPosition(left, top, saveToStorage = true) {
-            if (!fabContainer) return;
-            const clamped = clampPosition(left, top);
-            fabContainer.style.left = clamped.left + 'px';
-            fabContainer.style.top = clamped.top + 'px';
-            fabContainer.style.right = 'auto';
-            fabContainer.style.bottom = 'auto';
-            if (saveToStorage) {
-                try {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify({ left: clamped.left, top: clamped.top }));
-                } catch(e) {}
-            }
-        }
-        
-        // 从存储读取位置并应用 (若无存储则保持默认右下角样式)
-        function loadStoredPosition() {
-            if (!fabContainer) return;
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                try {
-                    const pos = JSON.parse(stored);
-                    if (typeof pos.left === 'number' && typeof pos.top === 'number') {
-                        updateFabSize();
-                        setFabPosition(pos.left, pos.top, false);
-                        return;
-                    }
-                } catch(e) {}
-            }
-            // 无存储: 确保 right/bottom 默认样式生效 (清除 left/top)
-            fabContainer.style.left = '';
-            fabContainer.style.top = '';
-            fabContainer.style.right = '30px';
-            fabContainer.style.bottom = '60px';
-        }
-        
-        // 重置到默认位置 (右下角)
-        function resetToDefaultPosition() {
-            if (!fabContainer) return;
-            fabContainer.style.left = '';
-            fabContainer.style.top = '';
-            fabContainer.style.right = '30px';
-            fabContainer.style.bottom = '60px';
-            try {
-                localStorage.removeItem(STORAGE_KEY);
-            } catch(e) {}
-        }
-        
-        // 清理长按定时器及状态标志
-        function clearLongPressTimer() {
-            if (longPressTimer) {
-                clearTimeout(longPressTimer);
-                longPressTimer = null;
-            }
-        }
-        
-        // 结束拖拽 (重置所有标志)
-        function endDrag() {
-            if (dragActive) {
-                // 拖拽结束时保存最终位置 (位置已在move中存储，无需额外存储，但确保最终边界保存)
-                if (fabContainer) {
-                    const left = parseFloat(fabContainer.style.left);
-                    const top = parseFloat(fabContainer.style.top);
-                    if (!isNaN(left) && !isNaN(top)) {
-                        setFabPosition(left, top, true);
-                    }
-                }
-                // 移除拖拽样式
-                if (fabBtn) fabBtn.classList.remove('dragging-active');
-                fabContainer.classList.remove('dragging-global');
-            }
-            dragActive = false;
-            isLongPressActive = false;
-            moveThresholdPassed = false;
-            clearLongPressTimer();
-            // 设置抑制click标记，确保松手后不触发新增
-            if (isLongPressActiveTimerFlag || dragActive) {
-                suppressClick = true;
-                // 延迟重置，防止click在touchend后立即触发
-                setTimeout(() => { suppressClick = false; }, 100);
-            }
-            // 重置额外标志
-            window._longPressTriggered = false;
-            activeTouchId = null;
-        }
-        
-        let isLongPressActiveTimerFlag = false; // 辅助标志
-        
-        // 进入拖拽模式 (长按激活后首次移动触发)
-        function activateDragMode(currentTouch, currentLeft, currentTop) {
-            if (dragActive) return;
-            dragActive = true;
-            isLongPressActive = true;
-            isLongPressActiveTimerFlag = true;
-            // 视觉反馈
-            if (fabBtn) fabBtn.classList.add('dragging-active');
-            fabContainer.classList.add('dragging-global');
-            // 阻止页面滚动 & 文本选择
-            document.body.style.userSelect = 'none';
-            document.body.style.webkitUserSelect = 'none';
-            // 记录拖拽初始值
-            startX = currentTouch.clientX;
-            startY = currentTouch.clientY;
-            initialLeft = currentLeft;
-            initialTop = currentTop;
-        }
-        
-        // 拖拽移动更新位置
-        function onDragMove(clientX, clientY) {
-            if (!dragActive) return false;
-            const dx = clientX - startX;
-            const dy = clientY - startY;
-            let newLeft = initialLeft + dx;
-            let newTop = initialTop + dy;
-            const clamped = clampPosition(newLeft, newTop);
-            fabContainer.style.left = clamped.left + 'px';
-            fabContainer.style.top = clamped.top + 'px';
-            fabContainer.style.right = 'auto';
-            fabContainer.style.bottom = 'auto';
-            // 实时存储到localStorage (频繁写入无大碍)
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify({ left: clamped.left, top: clamped.top }));
-            } catch(e) {}
-            return true;
-        }
-        
-        // 触摸开始
-        function onTouchStart(e) {
-            if (!isMobile()) return;
-            // 防止多指干扰: 只跟踪第一个触摸点
-            if (activeTouchId !== null) return;
-            const touch = e.touches[0];
-            activeTouchId = touch.identifier;
-            
-            // 清除之前状态
-            clearLongPressTimer();
-            suppressClick = false;
-            isLongPressActive = false;
-            dragActive = false;
-            moveThresholdPassed = false;
-            isLongPressActiveTimerFlag = false;
-            if (fabBtn) fabBtn.classList.remove('dragging-active');
-            
-            // 获取当前元素位置(计算left/top备用)
-            updateFabSize();
-            let currentLeft = 0, currentTop = 0;
-            const computedStyle = window.getComputedStyle(fabContainer);
-            const leftVal = computedStyle.left;
-            const topVal = computedStyle.top;
-            if (leftVal && leftVal !== 'auto') {
-                currentLeft = parseFloat(leftVal);
-                currentTop = parseFloat(topVal);
-            } else {
-                // 如果是right/bottom模式，则换算为left/top
-                const rect = fabContainer.getBoundingClientRect();
-                currentLeft = rect.left;
-                currentTop = rect.top;
-                // 保证存储坐标体系一致: 直接设置left/top，清除right/bottom
-                setFabPosition(currentLeft, currentTop, false);
-            }
-            if (isNaN(currentLeft)) currentLeft = 0;
-            if (isNaN(currentTop)) currentTop = 0;
-            initialLeft = currentLeft;
-            initialTop = currentTop;
-            startX = touch.clientX;
-            startY = touch.clientY;
-            
-            // 设定长按定时器 (350ms 后激活拖拽模式)
-            longPressTimer = setTimeout(() => {
-                // 长按时，如果没有移动过大的阈值或者还未进入拖拽，那么激活拖拽模式
-                if (!dragActive && !moveThresholdPassed) {
-                    // 进入长按拖拽预备状态（尚未移动，但已算长按）
-                    isLongPressActive = true;
-                    isLongPressActiveTimerFlag = true;
-                    // 震动感(可选) - 仅支持且不影响体验
-                    if (navigator.vibrate) navigator.vibrate(30);
-                    // 未移动时先激活拖拽模式 (此时还未开始drag，等待首次move真正进入拖拽)
-                    // 同时显示拖拽样式预备
-                    if (fabBtn) fabBtn.classList.add('dragging-active');
-                    fabContainer.classList.add('dragging-global');
-                    // 注意: 此时dragActive = false, 但用户移动手指时会立即激活dragActive
-                    // 为了在touchmove中知晓长按已触发，设置一个变量
-                    window._longPressTriggered = true;
-                }
-                longPressTimer = null;
-            }, 300);
-        }
-        
-        // 触摸移动
-        function onTouchMove(e) {
-            if (!isMobile()) return;
-            // 找到当前激活触摸点
-            let activeTouch = null;
-            for (let i = 0; i < e.touches.length; i++) {
-                if (e.touches[i].identifier === activeTouchId) {
-                    activeTouch = e.touches[i];
-                    break;
-                }
-            }
-            if (!activeTouch) return;
-            
-            const deltaX = Math.abs(activeTouch.clientX - startX);
-            const deltaY = Math.abs(activeTouch.clientY - startY);
-            const moveDistance = Math.hypot(deltaX, deltaY);
-            
-            // 若移动距离超过8px 且 尚未进入拖拽且长按定时器还在，则取消长按(变成普通滑动)
-            if (!dragActive && !isLongPressActive && longPressTimer && moveDistance > 8) {
-                clearLongPressTimer();
-                moveThresholdPassed = true;
-                return;
-            }
-            
-            // 长按已经触发(定时器已执行)但还未正式激活dragActive, 且移动距离超过3px -> 立即激活拖拽模式
-            if (!dragActive && (window._longPressTriggered || isLongPressActive) && moveDistance > 3) {
-                // 激活拖拽模式（更新初始位置和偏移）
-                updateFabSize();
-                let curLeft = 0, curTop = 0;
-                const leftStyle = fabContainer.style.left;
-                if (leftStyle && leftStyle !== 'auto') {
-                    curLeft = parseFloat(leftStyle);
-                    curTop = parseFloat(fabContainer.style.top);
-                } else {
-                    const rect = fabContainer.getBoundingClientRect();
-                    curLeft = rect.left;
-                    curTop = rect.top;
-                }
-                if (isNaN(curLeft)) curLeft = initialLeft;
-                if (isNaN(curTop)) curTop = initialTop;
-                activateDragMode(activeTouch, curLeft, curTop);
-                // 在activateDragMode中已经记录了startX,startY基于当前触摸点, 但由于移动了需要重新对齐偏移
-                startX = activeTouch.clientX;
-                startY = activeTouch.clientY;
-                initialLeft = curLeft;
-                initialTop = curTop;
-                // 防止页面滚动
-                e.preventDefault();
-                return;
-            }
-            
-            // 正式拖拽移动
-            if (dragActive) {
-                onDragMove(activeTouch.clientX, activeTouch.clientY);
-                e.preventDefault();
-            }
-        }
-        
-        // 触摸结束
-        function onTouchEnd(e) {
-            if (!isMobile()) return;
-            // 无论是否拖拽，都需要结束并清理
-            const wasDragging = dragActive;
-            const wasLongPress = isLongPressActive;
-            
-            endDrag();
-            // 恢复body选择
-            document.body.style.userSelect = '';
-            document.body.style.webkitUserSelect = '';
-            
-            // 如果没有进入拖拽模式且没有长按触发(即轻触)，则手动触发一次click（模拟新增）
-            if (!wasDragging && !wasLongPress && !suppressClick) {
-                // 纯点击：触发新建发布 (保留原有逻辑)
-                if (fabContainer && document.getElementById('newPostBtn')) {
-                    // 延迟执行避免和触摸事件冲突
-                    setTimeout(() => {
-                        const newPostBtn = document.getElementById('newPostBtn');
-                        if (newPostBtn) newPostBtn.click();
-                    }, 10);
-                }
-            } else {
-                // 防止click被意外触发
-                suppressClick = true;
-                setTimeout(() => { suppressClick = false; }, 100);
-            }
-            activeTouchId = null;
-            window._longPressTriggered = false;
-            isLongPressActiveTimerFlag = false;
-        }
-        
-        // 触摸取消 (系统中断)
-        function onTouchCancel(e) {
-            endDrag();
-            document.body.style.userSelect = '';
-            activeTouchId = null;
-            window._longPressTriggered = false;
-            isLongPressActiveTimerFlag = false;
-        }
-        
-        // 全局click拦截 (配合suppressClick避免拖拽后误触新增)
-        function interceptFabClick(e) {
-            if (suppressClick) {
-                e.stopPropagation();
-                e.preventDefault();
-                suppressClick = false;
-                return false;
-            }
-            // 正常点击由原有click处理，不做额外操作（但不会重复触发，因为touchEnd已经模拟了click，这里阻止双重）
-            // 为了完全避免原script中setupMobileFab的重复触发，但原有setupMobileFab中绑定了click，且我们上面手动触发了newPostBtn.click，
-            // 此处需要额外判断: 如果手动已触发，则不再触发原有click回调。但为了避免双重，设置标志另一个防抖。
-            // 简易处理：让原有的fabBtn click完全交由我们的逻辑，但不破坏之前的功能，我们只保留原有setupMobileFab提供的click? 但会导致双击效果。
-            // 解决方案: 在touchEnd中手动触发了newPostBtn.click, 所以这里拦截掉click避免二次调用。
-            if (!dragActive && !isLongPressActive) {
-                // 常规点击仍然允许执行原有逻辑（原script中的click事件）但我们已经触发了，需阻止原生click重复调用
-                e.stopImmediatePropagation();
-                e.preventDefault();
-                return false;
-            }
-            return true;
-        }
-        
-        // 绑定事件
-        function bindDragEvents() {
-            fabContainer.addEventListener('touchstart', onTouchStart, { passive: false });
-            fabContainer.addEventListener('touchmove', onTouchMove, { passive: false });
-            fabContainer.addEventListener('touchend', onTouchEnd);
-            fabContainer.addEventListener('touchcancel', onTouchCancel);
-            // 拦截click避免拖拽后误触发原有新增
-            fabBtn.addEventListener('click', interceptFabClick, true);
-        }
-        
-        // 窗口大小变化时重新校正位置 (确保按钮不超出边界)
-        function onWindowResize() {
-            if (!isMobile()) return;
-            updateFabSize();
-            let left = null, top = null;
-            const leftStyle = fabContainer.style.left;
-            if (leftStyle && leftStyle !== 'auto') {
-                left = parseFloat(leftStyle);
-                top = parseFloat(fabContainer.style.top);
-            } else {
-                const rect = fabContainer.getBoundingClientRect();
-                left = rect.left;
-                top = rect.top;
-            }
-            if (!isNaN(left) && !isNaN(top)) {
-                const clamped = clampPosition(left, top);
-                if (clamped.left !== left || clamped.top !== top) {
-                    setFabPosition(clamped.left, clamped.top, true);
-                }
-            } else {
-                // 读取存储或者重置
-                loadStoredPosition();
-            }
-        }
-        
-        // 初始化: 加载存储位置 + 绑定事件
-        function init() {
-            loadStoredPosition();
-            bindDragEvents();
-            window.addEventListener('resize', onWindowResize);
-            // 监听页面滚动时不处理，仅保留位置
-            // 观察appContainer显示后重新检查位置（防止懒加载导致初始定位错误）
-            const observer = new MutationObserver(() => {
-                if (fabContainer && window.getComputedStyle(fabContainer).display !== 'none') {
-                    updateFabSize();
-                    loadStoredPosition();
-                    observer.disconnect();
-                }
-            });
-            observer.observe(document.getElementById('appContainer') || document.body, { attributes: true, childList: true, subtree: false });
-        }
-        
-        // 延迟确保移动端样式完全渲染
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
-        } else {
-            init();
-        }
-        
-        // 暴露手动重置默认位置的方法 (可选，不用暴露但内部留用)
-        window.resetFabToDefault = resetToDefaultPosition;
-    })();
-
-    // 原有内联侧边栏与标题更新(保持不变)
-    (function() {
-        const headerTitleMap = {
-            published: '已发布内容',
-            scheduled: '定时任务',
-            draft: '草稿箱',
-            comments: '评论管理',
-            reports: '举报管理',
-            trash: '回收站'
-        };
-        window.updateMainHeader = function(moduleKey) {
-            const titleEl = document.getElementById('mainHeaderTitle');
-            if(titleEl && headerTitleMap[moduleKey]) {
-                titleEl.innerText = headerTitleMap[moduleKey];
-            }
-        };
-        window.closeSidebarGlobal = function() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            if(sidebar) sidebar.classList.remove('open');
-            if(overlay) overlay.classList.remove('active');
-        };
-    })();
-</script>
 </body>
 </html>
