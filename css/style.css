@@ -557,8 +557,7 @@ body {
 .content-panel {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    min-height: 0;
+    height: auto; 
 }
 
 .panel-header {
@@ -593,13 +592,11 @@ body {
 }
 
 .panel-list {
-    flex: 1;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 10px;
     min-height: 0;
-    -webkit-overflow-scrolling: touch;
 }
 
 /* ==================== 网格列表 ==================== */
@@ -1141,9 +1138,9 @@ body {
     align-items: center;
     gap: 6px;
     font-weight: 500;
-    margin-bottom: 7px;
     color: #475569;
     font-size: 0.83rem;
+    padding: 5px 0;
 }
 
 .form-group input,
@@ -1210,10 +1207,11 @@ body {
     display: flex;
     gap: 16px;
     background: #f8fafc;
-    padding: 10px 16px;
+    padding: 7px 14px; 
     border-radius: 8px;
     flex-wrap: wrap;
     border: 1.5px solid #e2e8f0;
+    align-items: center;
 }
 
 .type-option {
@@ -1300,6 +1298,7 @@ body {
     margin: 20px 0 16px;
     border-bottom: 2px solid #eef2f6;
     padding-bottom: 0;
+    justify-content: space-between;
 }
 
 .publish-tab-btn {
@@ -1311,7 +1310,7 @@ body {
     color: #64748b;
     cursor: pointer;
     border-radius: 8px 8px 0 0;
-    display: inline-flex;
+    flex: 1;
     align-items: center;
     gap: 6px;
     transition: all 0.2s;
@@ -1332,8 +1331,8 @@ body {
 .publish-tab-btn.active {
     color: #0f172a;
     font-weight: 600;
-    border-bottom: 2px solid #3b82f6;
-    background: #ffffff;
+    background: #3b82f6;
+    color: #ffffff;
     z-index: 1;
 }
 
@@ -1448,6 +1447,9 @@ body {
 }
 /* ==================== 响应式 ==================== */
 @media (max-width: 768px) {
+      .sidebar-collapse-toggle {
+        display: none;
+    }
     .sidebar {
         position: fixed;
         top: 0;
@@ -1534,10 +1536,6 @@ body {
         gap: 0;
     }
 
-    .type-selector {
-        gap: 12px;
-        padding: 8px 12px;
-    }
 
     .section-title {
         margin-top: 18px;
