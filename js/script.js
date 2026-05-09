@@ -3,7 +3,6 @@ const API_BASE = 'https://solitudenook.top';
 let currentTab = 'published';
 let reportsPanel, reportsListDiv, reportsHeaderBtn, sidebarReports;
 let trashPanelCountEl, trashPanelCountLargeEl, sidebarTrashBadge;
-let mainTabs;
 
 // 分页状态管理
 let pagination = {
@@ -50,11 +49,11 @@ function updateSidebarActive() {
 
     let activeId = null;
     const trashPanel = document.getElementById('trashPanel');
-    if (trashPanel && trashPanel.style.display === 'block') {
+    if (trashPanel && trashPanel.style.display !== 'none') {
         activeId = 'sidebarTrash';
-    } else if (commentsPanel && commentsPanel.style.display === 'block') {
+    } else if (commentsPanel && commentsPanel.style.display !== 'none') {
         activeId = 'sidebarComments';
-    } else if (reportsPanel && reportsPanel.style.display === 'block') {
+    } else if (reportsPanel && reportsPanel.style.display !== 'none') {
         activeId = 'sidebarReports';
     } else {
         if (currentTab === 'published') activeId = 'sidebarPublished';
@@ -74,7 +73,6 @@ function showReportsPanel() {
     setTrashStatsVisible(false);
     hideAllContentAreas();
     if (reportsPanel) reportsPanel.style.display = 'flex';
-    if (mainTabs) mainTabs.style.display = 'none';
     loadReports();
     updateSidebarActive();
 }
@@ -93,7 +91,6 @@ function hideAllContentAreas() {
 
 function showContentListOnly() {
     hideAllContentAreas();
-    if (mainTabs) mainTabs.style.display = 'inline-flex';
     const targetId = getContainerId(currentTab);
     const targetEl = document.getElementById(targetId);
     if (targetEl) targetEl.style.display = 'grid';
@@ -532,12 +529,7 @@ function switchTab(tab) {
     if (commentsPanel) commentsPanel.style.display = 'none';
     const trashPanelElem = document.getElementById('trashPanel');
     if (trashPanelElem) trashPanelElem.style.display = 'none';
-    if (mainTabs) mainTabs.style.display = 'inline-flex';
 
-    // PC端选项卡样式
-    document.querySelectorAll('.tabs button').forEach(btn => btn.classList.remove('active'));
-    const pcBtn = document.getElementById(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
-    if (pcBtn) pcBtn.classList.add('active');
 
     // 显示对应列表容器
     const containers = ['postList', 'scheduledList', 'draftList'];
@@ -916,7 +908,6 @@ async function showTrashPanel() {
     setTrashStatsVisible(true);
     updateMainHeader('trash');
     hideAllContentAreas();
-    if (mainTabs) mainTabs.style.display = 'none';
     const trashPanelElem = document.getElementById('trashPanel');
     if (trashPanelElem) trashPanelElem.style.display = 'flex';
     updateSidebarActive();
@@ -1196,7 +1187,6 @@ document.addEventListener('DOMContentLoaded', () => {
     reportsListDiv = document.getElementById('reportsList');
     reportsHeaderBtn = document.getElementById('reportsHeaderBtn');
     sidebarReports = document.getElementById('sidebarReports');
-    mainTabs = document.getElementById('mainTabs');
     trashPanelCountEl = document.getElementById('trashPanelCount');
     trashPanelCountLargeEl = document.getElementById('trashPanelCountLarge');
     sidebarTrashBadge = document.getElementById('sidebarTrashBadge');
@@ -1269,9 +1259,6 @@ publishTabBtns.forEach(btn => {
     setupUrlPreview(articleImageUrl, document.getElementById('imagePreview'), document.getElementById('imagePreviewContainer'));
     setupUrlPreview(sentenceImageUrl, document.getElementById('sentenceImagePreview'), document.getElementById('sentenceImagePreviewContainer'));
 
-    document.getElementById('tabPublished')?.addEventListener('click', () => switchTab('published'));
-    document.getElementById('tabScheduled')?.addEventListener('click', () => switchTab('scheduled'));
-    document.getElementById('tabDraft')?.addEventListener('click', () => switchTab('draft'));
 
     // 侧边栏标签切换
     document.getElementById('sidebarPublished')?.addEventListener('click', () => {
@@ -1371,7 +1358,6 @@ function showCommentsPanel() {
     updateMainHeader('comments');
     setTrashStatsVisible(false);
     hideAllContentAreas();
-    if (mainTabs) mainTabs.style.display = 'none';
     if (commentsPanel) commentsPanel.style.display = 'flex';
     loadComments();
     updateSidebarActive();
@@ -1540,352 +1526,71 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
-});
+    // ========== 侧边栏折叠功能 ==========
+const collapseBtn = document.getElementById('collapseSidebarBtn');
+const sidebarEl = document.getElementById('sidebar');
+const STORAGE_KEY = 'sidebar_collapsed';
 
-// ==================== 移动端悬浮球: 长按拖拽 + 位置记忆 ====================
-(function initDraggableFab() {
-    const isMobile = () => window.innerWidth <= 768;
-    if (!isMobile()) return;
-
-    const fabContainer = document.getElementById('mobileFabContainer');
-    const fabBtn = document.getElementById('mobileFabBtn');
-    if (!fabContainer || !fabBtn) return;
-
-    let longPressTimer = null;
-    let isLongPressActive = false;
-    let dragActive = false;
-    let startX = 0,
-        startY = 0;
-    let initialLeft = 0,
-        initialTop = 0;
-    let fabWidth = 0,
-        fabHeight = 0;
-    let suppressClick = false;
-    let activeTouchId = null;
-    let moveThresholdPassed = false;
-
-    const STORAGE_KEY = 'read_fab_position';
-    const EDGE_MARGIN = 12;
-
-    function updateFabSize() {
-        const rect = fabContainer.getBoundingClientRect();
-        fabWidth = rect.width;
-        fabHeight = rect.height;
-    }
-
-    function clampPosition(left, top) {
-        const winW = window.innerWidth;
-        const winH = window.innerHeight;
-        const minLeft = EDGE_MARGIN;
-        const maxLeft = winW - fabWidth - EDGE_MARGIN;
-        const minTop = EDGE_MARGIN;
-        const maxTop = winH - fabHeight - EDGE_MARGIN;
-        return {
-            left: Math.min(maxLeft, Math.max(minLeft, left)),
-            top: Math.min(maxTop, Math.max(minTop, top))
-        };
-    }
-
-    function setFabPosition(left, top, saveToStorage = true) {
-        if (!fabContainer) return;
-        const clamped = clampPosition(left, top);
-        fabContainer.style.left = clamped.left + 'px';
-        fabContainer.style.top = clamped.top + 'px';
-        fabContainer.style.right = 'auto';
-        fabContainer.style.bottom = 'auto';
-        if (saveToStorage) {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify({ left: clamped.left, top: clamped.top }));
-            } catch (e) {}
-        }
-    }
-
-    function loadStoredPosition() {
-        if (!fabContainer) return;
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try {
-                const pos = JSON.parse(stored);
-                if (typeof pos.left === 'number' && typeof pos.top === 'number') {
-                    updateFabSize();
-                    setFabPosition(pos.left, pos.top, false);
-                    return;
-                }
-            } catch (e) {}
-        }
-        fabContainer.style.left = '';
-        fabContainer.style.top = '';
-        fabContainer.style.right = '30px';
-        fabContainer.style.bottom = '60px';
-    }
-
-    function clearLongPressTimer() {
-        if (longPressTimer) {
-            clearTimeout(longPressTimer);
-            longPressTimer = null;
-        }
-    }
-
-    function endDrag() {
-        if (dragActive) {
-            if (fabContainer) {
-                const left = parseFloat(fabContainer.style.left);
-                const top = parseFloat(fabContainer.style.top);
-                if (!isNaN(left) && !isNaN(top)) {
-                    setFabPosition(left, top, true);
-                }
-            }
-            if (fabBtn) fabBtn.classList.remove('dragging-active');
-            fabContainer.classList.remove('dragging-global');
-        }
-        dragActive = false;
-        isLongPressActive = false;
-        moveThresholdPassed = false;
-        clearLongPressTimer();
-        if (isLongPressActiveTimerFlag || dragActive) {
-            suppressClick = true;
-            setTimeout(() => { suppressClick = false; }, 100);
-        }
-        window._longPressTriggered = false;
-        activeTouchId = null;
-    }
-
-    let isLongPressActiveTimerFlag = false;
-
-    function activateDragMode(currentTouch, currentLeft, currentTop) {
-        if (dragActive) return;
-        dragActive = true;
-        isLongPressActive = true;
-        isLongPressActiveTimerFlag = true;
-        if (fabBtn) fabBtn.classList.add('dragging-active');
-        fabContainer.classList.add('dragging-global');
-        document.body.style.userSelect = 'none';
-        document.body.style.webkitUserSelect = 'none';
-        startX = currentTouch.clientX;
-        startY = currentTouch.clientY;
-        initialLeft = currentLeft;
-        initialTop = currentTop;
-    }
-
-    function onDragMove(clientX, clientY) {
-        if (!dragActive) return false;
-        const dx = clientX - startX;
-        const dy = clientY - startY;
-        let newLeft = initialLeft + dx;
-        let newTop = initialTop + dy;
-        const clamped = clampPosition(newLeft, newTop);
-        fabContainer.style.left = clamped.left + 'px';
-        fabContainer.style.top = clamped.top + 'px';
-        fabContainer.style.right = 'auto';
-        fabContainer.style.bottom = 'auto';
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify({ left: clamped.left, top: clamped.top }));
-        } catch (e) {}
-        return true;
-    }
-
-    function onTouchStart(e) {
-        if (!isMobile()) return;
-        if (activeTouchId !== null) return;
-        const touch = e.touches[0];
-        activeTouchId = touch.identifier;
-        clearLongPressTimer();
-        suppressClick = false;
-        isLongPressActive = false;
-        dragActive = false;
-        moveThresholdPassed = false;
-        isLongPressActiveTimerFlag = false;
-        if (fabBtn) fabBtn.classList.remove('dragging-active');
-        updateFabSize();
-        let currentLeft = 0,
-            currentTop = 0;
-        const computedStyle = window.getComputedStyle(fabContainer);
-        const leftVal = computedStyle.left;
-        const topVal = computedStyle.top;
-        if (leftVal && leftVal !== 'auto') {
-            currentLeft = parseFloat(leftVal);
-            currentTop = parseFloat(topVal);
-        } else {
-            const rect = fabContainer.getBoundingClientRect();
-            currentLeft = rect.left;
-            currentTop = rect.top;
-            setFabPosition(currentLeft, currentTop, false);
-        }
-        if (isNaN(currentLeft)) currentLeft = 0;
-        if (isNaN(currentTop)) currentTop = 0;
-        initialLeft = currentLeft;
-        initialTop = currentTop;
-        startX = touch.clientX;
-        startY = touch.clientY;
-        longPressTimer = setTimeout(() => {
-            if (!dragActive && !moveThresholdPassed) {
-                isLongPressActive = true;
-                isLongPressActiveTimerFlag = true;
-                if (navigator.vibrate) navigator.vibrate(30);
-                if (fabBtn) fabBtn.classList.add('dragging-active');
-                fabContainer.classList.add('dragging-global');
-                window._longPressTriggered = true;
-            }
-            longPressTimer = null;
-        }, 300);
-    }
-
-    function onTouchMove(e) {
-        if (!isMobile()) return;
-        let activeTouch = null;
-        for (let i = 0; i < e.touches.length; i++) {
-            if (e.touches[i].identifier === activeTouchId) {
-                activeTouch = e.touches[i];
-                break;
-            }
-        }
-        if (!activeTouch) return;
-        const deltaX = Math.abs(activeTouch.clientX - startX);
-        const deltaY = Math.abs(activeTouch.clientY - startY);
-        const moveDistance = Math.hypot(deltaX, deltaY);
-        if (!dragActive && !isLongPressActive && longPressTimer && moveDistance > 8) {
-            clearLongPressTimer();
-            moveThresholdPassed = true;
-            return;
-        }
-        if (!dragActive && (window._longPressTriggered || isLongPressActive) && moveDistance > 3) {
-            updateFabSize();
-            let curLeft = 0,
-                curTop = 0;
-            const leftStyle = fabContainer.style.left;
-            if (leftStyle && leftStyle !== 'auto') {
-                curLeft = parseFloat(leftStyle);
-                curTop = parseFloat(fabContainer.style.top);
-            } else {
-                const rect = fabContainer.getBoundingClientRect();
-                curLeft = rect.left;
-                curTop = rect.top;
-            }
-            if (isNaN(curLeft)) curLeft = initialLeft;
-            if (isNaN(curTop)) curTop = initialTop;
-            activateDragMode(activeTouch, curLeft, curTop);
-            startX = activeTouch.clientX;
-            startY = activeTouch.clientY;
-            initialLeft = curLeft;
-            initialTop = curTop;
-            e.preventDefault();
-            return;
-        }
-        if (dragActive) {
-            onDragMove(activeTouch.clientX, activeTouch.clientY);
-            e.preventDefault();
-        }
-    }
-
-    function onTouchEnd(e) {
-        if (!isMobile()) return;
-        const wasDragging = dragActive;
-        const wasLongPress = isLongPressActive;
-        endDrag();
-        document.body.style.userSelect = '';
-        document.body.style.webkitUserSelect = '';
-        if (!wasDragging && !wasLongPress && !suppressClick) {
-            if (fabContainer && document.getElementById('newPostBtn')) {
-                setTimeout(() => {
-                    const newPostBtn = document.getElementById('newPostBtn');
-                    if (newPostBtn) newPostBtn.click();
-                }, 10);
-            }
-        } else {
-            suppressClick = true;
-            setTimeout(() => { suppressClick = false; }, 100);
-        }
-        activeTouchId = null;
-        window._longPressTriggered = false;
-        isLongPressActiveTimerFlag = false;
-    }
-
-    function onTouchCancel(e) {
-        endDrag();
-        document.body.style.userSelect = '';
-        activeTouchId = null;
-        window._longPressTriggered = false;
-        isLongPressActiveTimerFlag = false;
-    }
-
-    function interceptFabClick(e) {
-        if (suppressClick) {
-            e.stopPropagation();
-            e.preventDefault();
-            suppressClick = false;
-            return false;
-        }
-        if (!dragActive && !isLongPressActive) {
-            e.stopImmediatePropagation();
-            e.preventDefault();
-            return false;
-        }
-        return true;
-    }
-
-    function bindDragEvents() {
-        fabContainer.addEventListener('touchstart', onTouchStart, { passive: false });
-        fabContainer.addEventListener('touchmove', onTouchMove, { passive: false });
-        fabContainer.addEventListener('touchend', onTouchEnd);
-        fabContainer.addEventListener('touchcancel', onTouchCancel);
-        fabBtn.addEventListener('click', interceptFabClick, true);
-    }
-
-    function onWindowResize() {
-        if (!isMobile()) return;
-        updateFabSize();
-        let left = null,
-            top = null;
-        const leftStyle = fabContainer.style.left;
-        if (leftStyle && leftStyle !== 'auto') {
-            left = parseFloat(leftStyle);
-            top = parseFloat(fabContainer.style.top);
-        } else {
-            const rect = fabContainer.getBoundingClientRect();
-            left = rect.left;
-            top = rect.top;
-        }
-        if (!isNaN(left) && !isNaN(top)) {
-            const clamped = clampPosition(left, top);
-            if (clamped.left !== left || clamped.top !== top) {
-                setFabPosition(clamped.left, clamped.top, true);
-            }
-        } else {
-            loadStoredPosition();
-        }
-    }
-
-    function init() {
-        loadStoredPosition();
-        bindDragEvents();
-        window.addEventListener('resize', onWindowResize);
-        const observer = new MutationObserver(() => {
-            if (fabContainer && window.getComputedStyle(fabContainer).display !== 'none') {
-                updateFabSize();
-                loadStoredPosition();
-                observer.disconnect();
-            }
-        });
-        observer.observe(document.getElementById('appContainer') || document.body, { attributes: true, childList: true, subtree: false });
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
+// 读取并恢复折叠状态（仅桌面端）
+function applySidebarState() {
+    if (!sidebarEl) return;
+    const isCollapsed = localStorage.getItem(STORAGE_KEY) === 'true';
+    const isMobile = window.innerWidth <= 768;
+    if (!isMobile && isCollapsed) {
+        sidebarEl.classList.add('collapsed');
+        if (collapseBtn) collapseBtn.innerHTML = '<i class="ri-sidebar-unfold-line"></i><span>展开</span>';
     } else {
-        init();
+        sidebarEl.classList.remove('collapsed');
+        if (collapseBtn) collapseBtn.innerHTML = '<i class="ri-sidebar-fold-line"></i><span>收起</span>';
     }
+}
 
-    window.resetFabToDefault = function () {
-        if (!fabContainer) return;
-        fabContainer.style.left = '';
-        fabContainer.style.top = '';
-        fabContainer.style.right = '30px';
-        fabContainer.style.bottom = '60px';
-        try {
-            localStorage.removeItem(STORAGE_KEY);
-        } catch (e) {}
-    };
-})();
+// 切换折叠状态
+function toggleSidebarCollapse() {
+    if (!sidebarEl) return;
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) return; // 移动端不启用折叠功能
+    sidebarEl.classList.toggle('collapsed');
+    const isCollapsed = sidebarEl.classList.contains('collapsed');
+    localStorage.setItem(STORAGE_KEY, isCollapsed);
+    if (collapseBtn) {
+        if (isCollapsed) {
+            collapseBtn.innerHTML = '<i class="ri-sidebar-unfold-line"></i><span>展开</span>';
+        } else {
+            collapseBtn.innerHTML = '<i class="ri-sidebar-fold-line"></i><span>收起</span>';
+        }
+    }
+}
+
+// 窗口大小改变时，如果从桌面切换到移动端，自动取消折叠状态
+function handleResizeForSidebar() {
+    if (!sidebarEl) return;
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+        sidebarEl.classList.remove('collapsed');
+        localStorage.setItem(STORAGE_KEY, 'false');
+        if (collapseBtn) collapseBtn.innerHTML = '<i class="ri-sidebar-fold-line"></i><span>收起</span>';
+    } else {
+        // 重新应用存储的状态
+        const saved = localStorage.getItem(STORAGE_KEY) === 'true';
+        if (saved) {
+            sidebarEl.classList.add('collapsed');
+            if (collapseBtn) collapseBtn.innerHTML = '<i class="ri-sidebar-unfold-line"></i><span>展开</span>';
+        } else {
+            sidebarEl.classList.remove('collapsed');
+            if (collapseBtn) collapseBtn.innerHTML = '<i class="ri-sidebar-fold-line"></i><span>收起</span>';
+        }
+    }
+}
+
+// 绑定事件
+if (collapseBtn) {
+    collapseBtn.addEventListener('click', toggleSidebarCollapse);
+}
+window.addEventListener('resize', handleResizeForSidebar);
+// 页面加载时应用状态
+applySidebarState();
+});
 
 // ==================== 内联标题更新 ====================
 (function () {
