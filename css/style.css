@@ -82,19 +82,6 @@ body {
     margin-bottom: 32px;
 }
 
-.login-logo {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 16px;
-    font-size: 28px;
-    color: #fff;
-}
-
 .login-card h2 {
     font-size: 1.6rem;
     font-weight: 700;
@@ -459,7 +446,7 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 14px;
+    padding: 6px 10px;
     border: none;
     border-radius: var(--radius);
     font-weight: 500;
@@ -1150,10 +1137,9 @@ body {
 }
 
 .auto-resize-textarea {
-    overflow-y: hidden;
-    resize: none;
-    line-height: 1.5;
-    min-height: 90px;
+  overflow-y: auto; 
+  resize: none;
+  line-height: 1.5;
 }
 
 .section-title {
@@ -1562,4 +1548,49 @@ body {
     to {
         transform: rotate(360deg);
     }
+}
+/* ==================== 月份筛选组件 ==================== */
+.month-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 8px;
+}
+
+.topbar-btn-sm {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+}
+
+.topbar-btn-sm i {
+    font-size: 1rem;
+}
+/* 移除举报按钮 */
+.dismiss-report-btn {
+    background: #f0f9ff;          /* 浅蓝色背景，区别于红色的删除评论 */
+    border: 1px solid #bae6fd;
+    padding: 6px 14px;
+    border-radius: 7px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #0284c7;               /* 天蓝色文字 */
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.dismiss-report-btn:hover {
+    background: #e0f2fe;
+    border-color: #7dd3fc;
+}
+
+.dismiss-report-btn:disabled {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #94a3b8;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
