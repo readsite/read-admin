@@ -4,12 +4,13 @@ let currentTab = 'published';
 let reportsPanel, reportsListDiv, reportsHeaderBtn, sidebarReports;
 let trashPanelCountEl, trashPanelCountLargeEl;
 let commentCountCache = {};
-// 分页状态管理
+let commentsPanelCountEl, reportsPanelCountEl;
 let pagination = {
-    published: { page: 1, limit: 20, total: 0, loading: false, hasMore: true },
     scheduled: { page: 1, limit: 20, total: 0, loading: false, hasMore: true },
     draft: { page: 1, limit: 20, total: 0, loading: false, hasMore: true }
 };
+// 当前月份筛选值，如 "2026-05"
+let currentMonthFilter = '';
 
 function setTrashStatsVisible(visible) {
     if (trashPanelCountEl) trashPanelCountEl.style.display = visible ? 'inline-flex' : 'none';
@@ -42,6 +43,9 @@ let dateInput, musicTitle, musicArtist, musicCover, musicSrc,
     saveDraftBtn, submitBtn, modalTitle, publishFields,
     modalOverlay, closeModalBtn, cancelFormBtn;
 
+// 月份筛选 DOM
+let monthFilterGroup, monthPickerBtn, monthPickerLabel, clearMonthFilterBtn, hiddenMonthInput;
+
 // ==================== 侧边栏激活状态同步 ====================
 function updateSidebarActive() {
     const items = document.querySelectorAll('.sidebar-item');
@@ -71,10 +75,13 @@ function updateSidebarActive() {
 function showReportsPanel() {
     updateMainHeader('reports');
     setTrashStatsVisible(false);
+    setCommentsStatsVisible(false);
+    setReportsStatsVisible(true);   // 显示举报统计
     hideAllContentAreas();
     if (reportsPanel) reportsPanel.style.display = 'flex';
     loadReports();
     updateSidebarActive();
+    toggleMonthFilter(false);
 }
 
 function hideAllContentAreas() {
@@ -106,6 +113,10 @@ async function loadReports() {
         });
         if (!response.ok) throw new Error('获取举报列表失败');
         const reports = await response.json();
+        // 更新举报统计数量
+        if (reportsPanelCountEl) {
+            reportsPanelCountEl.innerText = `${reports.length} 条`;
+        }
         if (!reports.length) {
             reportsListDiv.innerHTML = '<div class="empty-message"><i class="ri-shield-check-line"></i> 暂无举报记录</div>';
             return;
@@ -118,8 +129,10 @@ async function loadReports() {
             const postDate = rep.date || '未知日期';
             const typeText = { music: '音乐', sentence: '句子', article: '文章' }[rep.type] || rep.type;
             const reason = escapeHtml(rep.reason || '无原因');
+            // 获取举报唯一标识，后端可在返回数据中提供 id 或 _id 字段
+            const reportId = rep.id || rep._id || '';
             html += `
-                <div class="report-card" data-comment-id="${rep.comment_id}">
+                <div class="report-card" data-comment-id="${rep.comment_id}" data-report-id="${reportId}">
                     <div class="report-meta">
                         <span class="report-reason"><i class="ri-error-warning-line"></i> ${reason}</span>
                         <span class="report-time">${createdAt}</span>
@@ -135,12 +148,16 @@ async function loadReports() {
                         <button class="delete-comment-from-report" data-comment-id="${rep.comment_id}">
                             <i class="ri-delete-bin-line"></i> 删除评论
                         </button>
+                        <button class="dismiss-report-btn" data-report-id="${reportId}" ${!reportId ? 'disabled title="缺少举报ID，无法单独移除"' : ''}>
+                            <i class="ri-close-circle-line"></i> 移除举报
+                        </button>
                     </div>
                 </div>
             `;
         }
         reportsListDiv.innerHTML = html;
 
+        // 删除评论按钮事件（原有逻辑）
         document.querySelectorAll('.delete-comment-from-report').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
@@ -167,9 +184,39 @@ async function loadReports() {
                 }
             });
         });
+
+        // 移除举报按钮事件（新增）
+        document.querySelectorAll('.dismiss-report-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const reportId = btn.dataset.reportId;
+                if (!reportId) {
+                    alert('当前举报记录缺少唯一标识，无法移除。请联系后端添加 id 字段。');
+                    return;
+                }
+                if (!confirm('确定移除该举报吗？仅删除举报记录，评论不受影响。')) return;
+                try {
+                    const res = await fetch(`${API_BASE}/api/reports/${reportId}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${getAuthToken()}` }
+                    });
+                    if (!res.ok) {
+                        const errText = await res.text();
+                        throw new Error(errText || '移除失败');
+                    }
+                    alert('举报已移除');
+                    loadReports();
+                } catch (err) {
+                    console.error(err);
+                    alert('移除举报失败：' + err.message);
+                }
+            });
+        });
+
     } catch (err) {
         console.error('加载举报失败', err);
         reportsListDiv.innerHTML = `<div class="empty-message"><i class="ri-error-warning-line"></i> 加载失败：${err.message}</div>`;
+        if (reportsPanelCountEl) reportsPanelCountEl.innerText = '0 条';
     }
 }
 
@@ -200,6 +247,8 @@ function showApp() {
     loadCurrentTab();
     updateSidebarActive();
     setTrashStatsVisible(false);
+    setCommentsStatsVisible(false);
+    setReportsStatsVisible(false);
 }
 
 function escapeHtml(str) {
@@ -208,12 +257,16 @@ function escapeHtml(str) {
 }
 
 function adjustTextareaHeight(textarea) {
-    if (!textarea) return;
-    textarea.style.height = 'auto';
+  if (!textarea) return;
+  textarea.style.height = 'auto';
+  requestAnimationFrame(() => {
     let newHeight = textarea.scrollHeight;
     const minHeight = 82;
+    const maxHeight = window.innerHeight * 0.8;
     if (newHeight < minHeight) newHeight = minHeight;
+    else if (newHeight > maxHeight) newHeight = maxHeight;
     textarea.style.height = newHeight + 'px';
+  });
 }
 
 function bindAutoResizeForTextarea(textarea) {
@@ -309,6 +362,26 @@ async function deleteDraftById(id) {
     return apiRequest(`/api/drafts/${id}`, { method: 'DELETE' });
 }
 
+// ==================== 月份筛选工具函数 ====================
+function getCurrentMonth() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+}
+
+function formatMonthForDisplay(monthStr) {
+    if (!monthStr) return '本月';
+    const [y, m] = monthStr.split('-');
+    return `${y}年${m}月`;
+}
+
+function toggleMonthFilter(visible) {
+    if (monthFilterGroup) {
+        monthFilterGroup.style.display = visible ? 'flex' : 'none';
+    }
+}
+
 // ==================== 数据加载函数 ====================
 async function loadCommentCounts() {
     try {
@@ -318,65 +391,50 @@ async function loadCommentCounts() {
         });
         if (!response.ok) return;
         const comments = await response.json();
-const counts = {};
-comments.forEach(c => {
-    const date = c.date;
-    const type = c.type;
-    if (date && type) {
-        const key = `${date}:${type}`;
-        counts[key] = (counts[key] || 0) + 1;
-    }
-});
+        const counts = {};
+        comments.forEach(c => {
+            const date = c.date;
+            const type = c.type;
+            if (date && type) {
+                const key = `${date}:${type}`;
+                counts[key] = (counts[key] || 0) + 1;
+            }
+        });
         commentCountCache = counts;
     } catch (e) {
         console.error('获取评论计数失败', e);
     }
 }
-async function loadPosts(append = false) {
-    const tab = 'published';
-    const pg = pagination[tab];
-    if (pg.loading) return;
-    if (!append) {
-        pg.page = 1;
-        pg.hasMore = true;
-        fullDataCache.published = [];
-        const container = document.getElementById('postList');
-        if (container) container.innerHTML = '<div class="empty-message"><i class="ri-loader-4-line spin"></i> 加载中...</div>';
-    }
-    if (!pg.hasMore && append) return;
-    pg.loading = true;
+
+// 加载已发布内容（按月）
+async function loadPosts(month) {
+    const targetMonth = month || currentMonthFilter || getCurrentMonth();
+    currentMonthFilter = targetMonth;
+    fullDataCache.published = [];
+    const container = document.getElementById('postList');
+    if (container) container.innerHTML = '<div class="empty-message"><i class="ri-loader-4-line spin"></i> 加载中...</div>';
+
     try {
-        const res = await apiRequest(`/api/posts?type=published&page=${pg.page}&limit=${pg.limit}`);
-        const items = res.items || [];
-        pg.total = res.total || 0;
-        pg.hasMore = items.length === pg.limit && (pg.page * pg.limit) < pg.total;
-        if (append) {
-            fullDataCache.published = [...fullDataCache.published, ...items];
-        } else {
-            fullDataCache.published = items;
-        }
-        renderTabData(tab);
-if (!append) {
-    loadCommentCounts().then(() => renderTabData('published'));
-}
-        if (pg.hasMore && append) {
-            const container = document.getElementById('postList');
-            if (container && !container.querySelector('.pagination-more')) {
-                const moreBtn = document.createElement('div');
-                moreBtn.className = 'pagination-more';
-                moreBtn.innerHTML = `<button class="load-more-btn" onclick="loadMore('${tab}')"><i class="ri-arrow-down-line"></i> 加载更多</button>`;
-                container.appendChild(moreBtn);
-            }
-        }
+        const res = await apiRequest(`/api/posts?month=${targetMonth}`);
+        const items = res.items || res || [];
+        fullDataCache.published = Array.isArray(items) ? items : [];
+        renderTabData('published');
+        loadCommentCounts().then(() => renderTabData('published'));
+        updateMonthPickerLabel(targetMonth);
     } catch (err) {
         console.error('加载已发布内容失败', err);
-        const container = document.getElementById('postList');
         if (container) container.innerHTML = `<div class="empty-message"><i class="ri-error-warning-line"></i> 加载失败：${err.message || '请检查网络或联系管理员'}</div>`;
-    } finally {
-        pg.loading = false;
     }
 }
 
+function updateMonthPickerLabel(month) {
+    if (monthPickerLabel) {
+        monthPickerLabel.textContent = formatMonthForDisplay(month);
+    }
+    if (clearMonthFilterBtn) {
+        clearMonthFilterBtn.style.display = 'none';
+    }
+}
 async function loadScheduled(append = false) {
     const tab = 'scheduled';
     const pg = pagination[tab];
@@ -399,9 +457,6 @@ async function loadScheduled(append = false) {
             fullDataCache.scheduled = items;
         }
         renderTabData(tab);
-if (!append) {
-    loadCommentCounts().then(() => renderTabData('published'));
-}
         if (pg.hasMore && append) {
             const container = document.getElementById('scheduledList');
             if (container && !container.querySelector('.pagination-more')) {
@@ -457,7 +512,7 @@ function renderTabData(tab) {
     const isMobile = window.innerWidth <= 768;
     let displayData = data;
     let showMore = false;
-    if (isMobile && data.length > mobilePageLimit[tab]) {
+    if (tab !== 'published' && isMobile && data.length > mobilePageLimit[tab]) {
         displayData = data.slice(0, mobilePageLimit[tab]);
         showMore = displayData.length < data.length;
     }
@@ -480,11 +535,11 @@ function renderTabData(tab) {
             return `
                 <div class="post-card">
                     <div class="post-card-header"><h3><i class="ri-calendar-event-line"></i> ${escapeHtml(post.date)}</h3></div>
-<div class="post-stats">
-    <div class="stat-item"><i class="ri-headphone-line"></i> 收藏 ${musicStats.favorites} · 分享 ${musicStats.shares} · 评论 ${commentCountCache[post.date + ':music'] || 0}</div>
-    <div class="stat-item"><i class="ri-double-quotes-l"></i> 收藏 ${sentenceStats.favorites} · 分享 ${sentenceStats.shares} · 评论 ${commentCountCache[post.date + ':sentence'] || 0}</div>
-    <div class="stat-item"><i class="ri-article-line"></i> 收藏 ${articleStats.favorites} · 分享 ${articleStats.shares} · 评论 ${commentCountCache[post.date + ':article'] || 0}</div>
-</div>
+                    <div class="post-stats">
+                        <div class="stat-item"><i class="ri-headphone-line"></i> 收藏 ${musicStats.favorites} · 分享 ${musicStats.shares} · 评论 ${commentCountCache[post.date + ':music'] || 0}</div>
+                        <div class="stat-item"><i class="ri-double-quotes-l"></i> 收藏 ${sentenceStats.favorites} · 分享 ${sentenceStats.shares} · 评论 ${commentCountCache[post.date + ':sentence'] || 0}</div>
+                        <div class="stat-item"><i class="ri-article-line"></i> 收藏 ${articleStats.favorites} · 分享 ${articleStats.shares} · 评论 ${commentCountCache[post.date + ':article'] || 0}</div>
+                    </div>
                     <div class="post-actions">
                         <button class="card-menu-btn" data-type="published" data-identifier="${escapeHtml(post.date)}"><i class="ri-more-fill"></i></button>
                     </div>
@@ -523,7 +578,7 @@ function renderTabData(tab) {
         }).join('');
     }
 
-    if (showMore) {
+    if (showMore && tab !== 'published') {
         html += `<div class="pagination-more"><button class="load-more-btn" onclick="loadMore('${tab}')"><i class="ri-arrow-down-line"></i> 加载更多</button></div>`;
     }
     container.innerHTML = html;
@@ -532,11 +587,11 @@ function renderTabData(tab) {
 }
 
 window.loadMore = function (tab) {
+    if (tab === 'published') return;
     const pg = pagination[tab];
     if (pg.loading || !pg.hasMore) return;
     pg.page++;
-    if (tab === 'published') loadPosts(true);
-    else if (tab === 'scheduled') loadScheduled(true);
+    if (tab === 'scheduled') loadScheduled(true);
     else if (tab === 'draft') {
         alert('草稿暂不支持分页，请下拉刷新');
         pg.hasMore = false;
@@ -544,7 +599,7 @@ window.loadMore = function (tab) {
 };
 
 function refreshCurrentTabData() {
-    if (currentTab === 'published') loadPosts(false);
+    if (currentTab === 'published') loadPosts(currentMonthFilter);
     else if (currentTab === 'scheduled') loadScheduled(false);
     else if (currentTab === 'draft') loadDrafts(false);
 }
@@ -553,13 +608,15 @@ function switchTab(tab) {
     currentTab = tab;
     updateMainHeader(tab);
     setTrashStatsVisible(false);
+    setCommentsStatsVisible(false);
+    setReportsStatsVisible(false);  // 隐藏所有统计
     if (reportsPanel) reportsPanel.style.display = 'none';
     if (commentsPanel) commentsPanel.style.display = 'none';
     const trashPanelElem = document.getElementById('trashPanel');
     if (trashPanelElem) trashPanelElem.style.display = 'none';
 
+    toggleMonthFilter(tab === 'published');
 
-    // 显示对应列表容器
     const containers = ['postList', 'scheduledList', 'draftList'];
     containers.forEach(id => {
         const el = document.getElementById(id);
@@ -569,9 +626,10 @@ function switchTab(tab) {
     const targetEl = document.getElementById(targetId);
     if (targetEl) targetEl.style.display = 'grid';
 
-    // 加载数据
-    if (tab === 'published') loadPosts(false);
-    else if (tab === 'scheduled') loadScheduled(false);
+    if (tab === 'published') {
+        if (!currentMonthFilter) currentMonthFilter = getCurrentMonth();
+        loadPosts(currentMonthFilter);
+    } else if (tab === 'scheduled') loadScheduled(false);
     else if (tab === 'draft') loadDrafts(false);
     updateSidebarActive();
 }
@@ -672,10 +730,9 @@ function fillFormWithData(data, publishTypeVal = 'immediate') {
 function collectFormData() {
     const publishType = document.querySelector('input[name="publishType"]:checked').value;
     
-    // 处理音频链接：如果只输入了数字ID，自动补全为完整链接
     let srcValue = musicSrc.value.trim();
     if (/^\d+$/.test(srcValue)) {
-        srcValue = `http://music.163.com/song/media/outer/url?id=${srcValue}.mp3`;
+        srcValue = `https://music.163.com/song/media/outer/url?id=${srcValue}.mp3`;
     }
     
     return {
@@ -941,11 +998,14 @@ async function permanentDeleteTrashItem(trashId) {
 
 async function showTrashPanel() {
     setTrashStatsVisible(true);
+    setCommentsStatsVisible(false);
+    setReportsStatsVisible(false);
     updateMainHeader('trash');
     hideAllContentAreas();
     const trashPanelElem = document.getElementById('trashPanel');
     if (trashPanelElem) trashPanelElem.style.display = 'flex';
     updateSidebarActive();
+    toggleMonthFilter(false);
     await loadTrashData();
 }
 
@@ -1213,6 +1273,10 @@ if (checkAuth()) {
 
 // ==================== DOM 元素获取与事件绑定 ====================
 document.addEventListener('DOMContentLoaded', () => {
+    commentsPanelCountEl = document.getElementById('commentsPanelCount');
+    reportsPanelCountEl = document.getElementById('reportsPanelCount');
+    if (commentsPanelCountEl) commentsPanelCountEl.style.display = 'none';
+    if (reportsPanelCountEl) reportsPanelCountEl.style.display = 'none';
     reportsPanel = document.getElementById('reportsPanel');
     reportsListDiv = document.getElementById('reportsList');
     reportsHeaderBtn = document.getElementById('reportsHeaderBtn');
@@ -1221,27 +1285,25 @@ document.addEventListener('DOMContentLoaded', () => {
     trashPanelCountLargeEl = document.getElementById('trashPanelCountLarge');
     const togglePwd = document.getElementById('togglePassword');
     const pwdInput = document.getElementById('password');
-// 发布表单选项卡切换
-const publishTabBtns = document.querySelectorAll('.publish-tab-btn');
-const publishTabPanels = document.querySelectorAll('.publish-tab-panel');
-publishTabBtns.forEach(btn => {
-    btn.addEventListener('click', function() {
-        const targetTab = this.dataset.tab;
-        // 切换按钮状态
-        publishTabBtns.forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        // 切换面板
-        publishTabPanels.forEach(panel => {
-            panel.classList.toggle('active', panel.dataset.panel === targetTab);
+
+    const publishTabBtns = document.querySelectorAll('.publish-tab-btn');
+    const publishTabPanels = document.querySelectorAll('.publish-tab-panel');
+    publishTabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const targetTab = this.dataset.tab;
+            publishTabBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            publishTabPanels.forEach(panel => {
+                panel.classList.toggle('active', panel.dataset.panel === targetTab);
+            });
+            const activePanel = document.querySelector('.publish-tab-panel.active');
+            if (activePanel) {
+                const textareas = activePanel.querySelectorAll('.auto-resize-textarea');
+                textareas.forEach(ta => adjustTextareaHeight(ta));
+            }
         });
-        // 调整新显示面板中的 textarea 高度
-        const activePanel = document.querySelector('.publish-tab-panel.active');
-        if (activePanel) {
-            const textareas = activePanel.querySelectorAll('.auto-resize-textarea');
-            textareas.forEach(ta => adjustTextareaHeight(ta));
-        }
     });
-});
+
     if (trashPanelCountEl) trashPanelCountEl.style.display = 'none';
     if (trashPanelCountLargeEl) trashPanelCountLargeEl.style.display = 'none';
 
@@ -1280,19 +1342,45 @@ publishTabBtns.forEach(btn => {
     modalOverlay = document.getElementById('modalOverlay');
     cancelFormBtn = document.getElementById('cancelFormBtn');
     musicSrc.addEventListener('blur', function() {
-    const val = this.value.trim();
-    if (/^\d+$/.test(val)) {
-        this.value = `http://music.163.com/song/media/outer/url?id=${val}.mp3`;
-    }
-});
+        const val = this.value.trim();
+        if (/^\d+$/.test(val)) {
+            this.value = `http://music.163.com/song/media/outer/url?id=${val}.mp3`;
+        }
+    });
     bindAutoResizeForTextarea(sentenceText);
     bindAutoResizeForTextarea(articleContent);
 
     setupUrlPreview(articleImageUrl, document.getElementById('imagePreview'), document.getElementById('imagePreviewContainer'));
     setupUrlPreview(sentenceImageUrl, document.getElementById('sentenceImagePreview'), document.getElementById('sentenceImagePreviewContainer'));
 
+    monthFilterGroup = document.getElementById('monthFilterGroup');
+    monthPickerBtn = document.getElementById('monthPickerBtn');
+    monthPickerLabel = document.getElementById('monthPickerLabel');
+    clearMonthFilterBtn = document.getElementById('clearMonthFilterBtn');
+    hiddenMonthInput = document.getElementById('hiddenMonthInput');
 
-    // 侧边栏标签切换
+    if (monthPickerBtn) {
+        monthPickerBtn.addEventListener('click', () => {
+            if (hiddenMonthInput) hiddenMonthInput.click();
+        });
+    }
+    if (hiddenMonthInput) {
+        hiddenMonthInput.addEventListener('change', function() {
+            const selectedMonth = this.value;
+            if (selectedMonth) {
+                loadPosts(selectedMonth);
+            }
+        });
+        hiddenMonthInput.value = getCurrentMonth();
+    }
+    if (clearMonthFilterBtn) {
+        clearMonthFilterBtn.addEventListener('click', () => {
+            const currentMonth = getCurrentMonth();
+            if (hiddenMonthInput) hiddenMonthInput.value = currentMonth;
+            loadPosts(currentMonth);
+        });
+    }
+
     document.getElementById('sidebarPublished')?.addEventListener('click', () => {
         closeSidebar();
         switchTab('published');
@@ -1306,7 +1394,6 @@ publishTabBtns.forEach(btn => {
         switchTab('draft');
     });
 
-    // 新建发布按钮
     document.getElementById('newPostBtn')?.addEventListener('click', () => {
         resetForm();
         saveDraftBtn.style.display = 'inline-flex';
@@ -1314,13 +1401,12 @@ publishTabBtns.forEach(btn => {
         currentMode = 'normal';
         publishFields.style.display = 'block';
         modalTitle.innerHTML = '<i class="ri-add-circle-line"></i> 新建发布内容';
-        // 重置选项卡到音乐
-document.querySelectorAll('.publish-tab-btn').forEach(btn => btn.classList.remove('active'));
-const musicTabBtn = document.querySelector('.publish-tab-btn[data-tab="music"]');
-if (musicTabBtn) musicTabBtn.classList.add('active');
-document.querySelectorAll('.publish-tab-panel').forEach(panel => panel.classList.remove('active'));
-const musicPanel = document.querySelector('.publish-tab-panel[data-panel="music"]');
-if (musicPanel) musicPanel.classList.add('active');
+        document.querySelectorAll('.publish-tab-btn').forEach(btn => btn.classList.remove('active'));
+        const musicTabBtn = document.querySelector('.publish-tab-btn[data-tab="music"]');
+        if (musicTabBtn) musicTabBtn.classList.add('active');
+        document.querySelectorAll('.publish-tab-panel').forEach(panel => panel.classList.remove('active'));
+        const musicPanel = document.querySelector('.publish-tab-panel[data-panel="music"]');
+        if (musicPanel) musicPanel.classList.add('active');
         openModal();
     });
 
@@ -1332,7 +1418,6 @@ if (musicPanel) musicPanel.classList.add('active');
     cancelFormBtn?.addEventListener('click', closeModal);
     modalOverlay?.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
 
-    // 回收站按钮
     const trashBtn = document.getElementById('trashBinBtn');
     if (trashBtn) trashBtn.addEventListener('click', showTrashPanel);
     const sidebarTrashElem = document.getElementById('sidebarTrash');
@@ -1389,10 +1474,13 @@ const commentsHeaderBtn = document.getElementById('commentsHeaderBtn');
 function showCommentsPanel() {
     updateMainHeader('comments');
     setTrashStatsVisible(false);
+    setReportsStatsVisible(false);
+    setCommentsStatsVisible(true);   // 显示评论统计
     hideAllContentAreas();
     if (commentsPanel) commentsPanel.style.display = 'flex';
-    loadComments();
+    loadComments();                  // 加载评论数据（内部会更新计数）
     updateSidebarActive();
+    toggleMonthFilter(false);
 }
 
 if (commentsHeaderBtn) commentsHeaderBtn.addEventListener('click', showCommentsPanel);
@@ -1408,6 +1496,10 @@ async function loadComments() {
         if (!response.ok) throw new Error('获取评论失败');
         const comments = await response.json();
         const commentArray = Array.isArray(comments) ? comments : [];
+        // 更新评论数量统计
+        if (commentsPanelCountEl) {
+            commentsPanelCountEl.innerText = `${commentArray.length} 条`;
+        }
         if (commentArray.length === 0) {
             commentsListDiv.innerHTML = '<div class="empty-message"><i class="ri-chat-3-line"></i> 暂无评论</div>';
             return;
@@ -1460,6 +1552,7 @@ async function loadComments() {
     } catch (err) {
         console.error('加载评论失败', err);
         commentsListDiv.innerHTML = `<div class="empty-message"><i class="ri-error-warning-line"></i> 加载评论失败：${err.message}</div>`;
+        if (commentsPanelCountEl) commentsPanelCountEl.innerText = '0 条';
     }
 }
 
@@ -1559,53 +1652,15 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
     // ========== 侧边栏折叠功能 ==========
-const collapseBtn = document.getElementById('collapseSidebarBtn');
-const sidebarEl = document.getElementById('sidebar');
-const STORAGE_KEY = 'sidebar_collapsed';
+    const collapseBtn = document.getElementById('collapseSidebarBtn');
+    const sidebarEl = document.getElementById('sidebar');
+    const STORAGE_KEY = 'sidebar_collapsed';
 
-// 读取并恢复折叠状态（仅桌面端）
-function applySidebarState() {
-    if (!sidebarEl) return;
-    const isCollapsed = localStorage.getItem(STORAGE_KEY) === 'true';
-    const isMobile = window.innerWidth <= 768;
-    if (!isMobile && isCollapsed) {
-        sidebarEl.classList.add('collapsed');
-        if (collapseBtn) collapseBtn.innerHTML = '<i class="ri-sidebar-unfold-line"></i><span>展开</span>';
-    } else {
-        sidebarEl.classList.remove('collapsed');
-        if (collapseBtn) collapseBtn.innerHTML = '<i class="ri-sidebar-fold-line"></i><span>收起</span>';
-    }
-}
-
-// 切换折叠状态
-function toggleSidebarCollapse() {
-    if (!sidebarEl) return;
-    const isMobile = window.innerWidth <= 768;
-    if (isMobile) return; // 移动端不启用折叠功能
-    sidebarEl.classList.toggle('collapsed');
-    const isCollapsed = sidebarEl.classList.contains('collapsed');
-    localStorage.setItem(STORAGE_KEY, isCollapsed);
-    if (collapseBtn) {
-        if (isCollapsed) {
-            collapseBtn.innerHTML = '<i class="ri-sidebar-unfold-line"></i><span>展开</span>';
-        } else {
-            collapseBtn.innerHTML = '<i class="ri-sidebar-fold-line"></i><span>收起</span>';
-        }
-    }
-}
-
-// 窗口大小改变时，如果从桌面切换到移动端，自动取消折叠状态
-function handleResizeForSidebar() {
-    if (!sidebarEl) return;
-    const isMobile = window.innerWidth <= 768;
-    if (isMobile) {
-        sidebarEl.classList.remove('collapsed');
-        localStorage.setItem(STORAGE_KEY, 'false');
-        if (collapseBtn) collapseBtn.innerHTML = '<i class="ri-sidebar-fold-line"></i><span>收起</span>';
-    } else {
-        // 重新应用存储的状态
-        const saved = localStorage.getItem(STORAGE_KEY) === 'true';
-        if (saved) {
+    function applySidebarState() {
+        if (!sidebarEl) return;
+        const isCollapsed = localStorage.getItem(STORAGE_KEY) === 'true';
+        const isMobile = window.innerWidth <= 768;
+        if (!isMobile && isCollapsed) {
             sidebarEl.classList.add('collapsed');
             if (collapseBtn) collapseBtn.innerHTML = '<i class="ri-sidebar-unfold-line"></i><span>展开</span>';
         } else {
@@ -1613,15 +1668,47 @@ function handleResizeForSidebar() {
             if (collapseBtn) collapseBtn.innerHTML = '<i class="ri-sidebar-fold-line"></i><span>收起</span>';
         }
     }
-}
 
-// 绑定事件
-if (collapseBtn) {
-    collapseBtn.addEventListener('click', toggleSidebarCollapse);
-}
-window.addEventListener('resize', handleResizeForSidebar);
-// 页面加载时应用状态
-applySidebarState();
+    function toggleSidebarCollapse() {
+        if (!sidebarEl) return;
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile) return;
+        sidebarEl.classList.toggle('collapsed');
+        const isCollapsed = sidebarEl.classList.contains('collapsed');
+        localStorage.setItem(STORAGE_KEY, isCollapsed);
+        if (collapseBtn) {
+            if (isCollapsed) {
+                collapseBtn.innerHTML = '<i class="ri-sidebar-unfold-line"></i><span>展开</span>';
+            } else {
+                collapseBtn.innerHTML = '<i class="ri-sidebar-fold-line"></i><span>收起</span>';
+            }
+        }
+    }
+
+    function handleResizeForSidebar() {
+        if (!sidebarEl) return;
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile) {
+            sidebarEl.classList.remove('collapsed');
+            localStorage.setItem(STORAGE_KEY, 'false');
+            if (collapseBtn) collapseBtn.innerHTML = '<i class="ri-sidebar-fold-line"></i><span>收起</span>';
+        } else {
+            const saved = localStorage.getItem(STORAGE_KEY) === 'true';
+            if (saved) {
+                sidebarEl.classList.add('collapsed');
+                if (collapseBtn) collapseBtn.innerHTML = '<i class="ri-sidebar-unfold-line"></i><span>展开</span>';
+            } else {
+                sidebarEl.classList.remove('collapsed');
+                if (collapseBtn) collapseBtn.innerHTML = '<i class="ri-sidebar-fold-line"></i><span>收起</span>';
+            }
+        }
+    }
+
+    if (collapseBtn) {
+        collapseBtn.addEventListener('click', toggleSidebarCollapse);
+    }
+    window.addEventListener('resize', handleResizeForSidebar);
+    applySidebarState();
 });
 
 // ==================== 内联标题更新 ====================
@@ -1647,3 +1734,14 @@ applySidebarState();
         if (overlayEl) overlayEl.classList.remove('active');
     };
 })();
+function setCommentsStatsVisible(visible) {
+    if (commentsPanelCountEl) {
+        commentsPanelCountEl.style.display = visible ? 'inline-flex' : 'none';
+    }
+}
+
+function setReportsStatsVisible(visible) {
+    if (reportsPanelCountEl) {
+        reportsPanelCountEl.style.display = visible ? 'inline-flex' : 'none';
+    }
+}
