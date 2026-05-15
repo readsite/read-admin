@@ -1594,3 +1594,11 @@ body {
     cursor: not-allowed;
     opacity: 0.6;
 }
+#hiddenMonthInput {
+    position: absolute;
+    left: -9999px;
+    top: -9999px;
+    opacity: 0;
+    width: 200px;
+    height: 30px;
+}

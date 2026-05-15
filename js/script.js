@@ -1359,11 +1359,24 @@ document.addEventListener('DOMContentLoaded', () => {
     clearMonthFilterBtn = document.getElementById('clearMonthFilterBtn');
     hiddenMonthInput = document.getElementById('hiddenMonthInput');
 
-    if (monthPickerBtn) {
-        monthPickerBtn.addEventListener('click', () => {
-            if (hiddenMonthInput) hiddenMonthInput.click();
-        });
-    }
+if (monthPickerBtn) {
+    monthPickerBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        if (hiddenMonthInput) {
+            // 优先使用现代浏览器的 showPicker 方法
+            if (typeof hiddenMonthInput.showPicker === 'function') {
+                try {
+                    await hiddenMonthInput.showPicker();
+                } catch (err) {
+                    console.warn('showPicker 失败，回退到 click', err);
+                    hiddenMonthInput.click();
+                }
+            } else {
+                hiddenMonthInput.click();
+            }
+        }
+    });
+}
     if (hiddenMonthInput) {
         hiddenMonthInput.addEventListener('change', function() {
             const selectedMonth = this.value;
